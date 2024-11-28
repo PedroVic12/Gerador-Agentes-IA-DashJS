@@ -12,11 +12,13 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@supabase/supabase-js": "^2.46.2",
     "chokidar": "^4.0.1",
     "csv-parser": "^3.0.0",
     "events": "^3.3.0",
     "exceljs": "^4.4.0",
     "fs": "^0.0.1-security",
+    "ml-regression": "^6.2.0",
     "path": "^0.12.7",
     "stream": "^0.0.3",
     "supabase": "^1.223.10"

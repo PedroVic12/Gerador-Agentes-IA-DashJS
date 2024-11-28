@@ -1,10 +1,12 @@
 import { PrismaClient } from '@prisma/client';
 import { MaintenanceType, MaintenanceStatus } from '../types/maintenance';
+import { SupabaseService } from './SupabaseService';
 
-export class MaintenanceService {
+export class MaintenanceService extends SupabaseService {
   private prisma: PrismaClient;
 
   constructor() {
+    super();
     this.prisma = new PrismaClient();
   }
 
@@ -119,5 +121,42 @@ export class MaintenanceService {
         status: MaintenanceStatus.SCHEDULED,
       },
     });
+  }
+
+  async getData(tableName: string) {
+    return this.getData(tableName);
+  }
+
+  async exportToExcel(data: any[], filename: string): Promise<string> {
+    return this.exportToExcel(data, filename);
+  }
+
+  async predictMaintenanceNeeds(equipmentId: string) {
+    const data = await this.getData('maintenance_history');
+    // Implementar lógica de predição
+    return {
+      nextMaintenanceDate: new Date(),
+      confidence: 0.85
+    };
+  }
+
+  async registerMaintenance(data: {
+    equipmentId: string;
+    date: Date;
+    type: 'preventive' | 'corrective';
+    description: string;
+  }) {
+    return this.insertData('maintenance_history', data);
+  }
+
+  async getMaintenanceHistory(equipmentId: string) {
+    const { data, error } = await this.supabase
+      .from('maintenance_history')
+      .select('*')
+      .eq('equipmentId', equipmentId)
+      .order('date', { ascending: false });
+
+    if (error) throw error;
+    return data;
   }
 }

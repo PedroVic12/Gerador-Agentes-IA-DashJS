@@ -1,203 +1,151 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DataRepository = void 0;
-const supabase_js_1 = require("@supabase/supabase-js");
-const exceljs_1 = __importDefault(require("exceljs"));
-const fs_1 = __importDefault(require("fs"));
-const csv_parser_1 = __importDefault(require("csv-parser"));
-const path_1 = __importDefault(require("path"));
-const chokidar_1 = __importDefault(require("chokidar"));
+const chokidar = __importStar(require("chokidar"));
 const events_1 = require("events");
-class DataRepository extends events_1.EventEmitter {
+const exceljs_1 = __importDefault(require("exceljs"));
+const path_1 = __importDefault(require("path"));
+const fs_1 = __importDefault(require("fs"));
+const SupabaseService_1 = require("./SupabaseService");
+class DataRepository extends SupabaseService_1.SupabaseService {
     constructor() {
         super();
-        this.watchedFiles = new Map(); // filepath -> lastHash
-        const supabaseUrl = process.env.SUPABASE_URL || '';
-        const supabaseKey = process.env.SUPABASE_KEY || '';
-        this.supabase = (0, supabase_js_1.createClient)(supabaseUrl, supabaseKey);
         this.dataDir = path_1.default.join(__dirname, '../../../data');
-        // Ensure data directory exists
-        if (!fs_1.default.existsSync(this.dataDir)) {
-            fs_1.default.mkdirSync(this.dataDir, { recursive: true });
-        }
-        // Initialize file watcher
-        this.watcher = chokidar_1.default.watch(this.dataDir, {
-            ignored: /(^|[\/\\])\../, // ignore dotfiles
+        this.eventEmitter = new events_1.EventEmitter();
+        this.watcher = chokidar.watch(this.dataDir, {
+            ignored: /(^|[\/\\])\../,
             persistent: true
         });
         this.setupWatcher();
     }
     setupWatcher() {
         this.watcher
-            .on('add', path => this.handleFileChange('add', path))
-            .on('change', path => this.handleFileChange('change', path))
-            .on('unlink', path => this.handleFileChange('delete', path));
+            .on('add', (path) => this.handleFileChange('add', path))
+            .on('change', (path) => this.handleFileChange('change', path))
+            .on('unlink', (path) => this.handleFileChange('unlink', path));
     }
-    async handleFileChange(event, filepath) {
-        const ext = path_1.default.extname(filepath).toLowerCase();
-        const tableName = path_1.default.basename(filepath, ext);
+    async handleFileChange(event, filePath) {
         try {
-            if (event === 'delete') {
-                await this.clearTable(tableName);
-                this.emit('dataChanged', { event, table: tableName });
+            const ext = path_1.default.extname(filePath).toLowerCase();
+            if (!['.xlsx', '.csv', '.json'].includes(ext))
                 return;
+            switch (event) {
+                case 'add':
+                case 'change':
+                    await this.processFile(filePath);
+                    break;
+                case 'unlink':
+                    // Handle file deletion
+                    break;
             }
-            let data = [];
-            switch (ext) {
-                case '.xlsx':
-                    data = await this.readExcelFile(filepath);
-                    break;
-                case '.csv':
-                    data = await this.readCsvFile(filepath);
-                    break;
-                case '.json':
-                    data = await this.readJsonFile(filepath);
-                    break;
-                default:
-                    console.warn(`Unsupported file type: ${ext}`);
-                    return;
-            }
-            await this.syncDataWithSupabase(tableName, data);
-            this.emit('dataChanged', { event, table: tableName, data });
+            this.eventEmitter.emit('fileChange', { event, path: filePath });
         }
         catch (error) {
-            console.error(`Error handling file change for ${filepath}:`, error);
-            this.emit('error', error);
+            console.error('Error handling file change:', error);
         }
     }
-    async readExcelFile(filepath) {
+    async processFile(filePath) {
+        const ext = path_1.default.extname(filePath).toLowerCase();
+        let data = [];
+        switch (ext) {
+            case '.xlsx':
+                data = await this.readExcel(filePath);
+                break;
+            case '.csv':
+                data = await this.readCSV(filePath);
+                break;
+            case '.json':
+                data = await this.readJSON(filePath);
+                break;
+        }
+        await this.syncWithSupabase(data);
+    }
+    async readExcel(filePath) {
         const workbook = new exceljs_1.default.Workbook();
-        await workbook.xlsx.readFile(filepath);
-        const worksheet = workbook.worksheets[0];
-        const headers = worksheet.getRow(1).values;
+        await workbook.xlsx.readFile(filePath);
+        const worksheet = workbook.getWorksheet(1);
         const data = [];
-        worksheet.eachRow((row, rowNumber) => {
+        worksheet === null || worksheet === void 0 ? void 0 : worksheet.eachRow((row, rowNumber) => {
             if (rowNumber === 1)
                 return; // Skip header row
-            const rowData = {};
-            row.eachCell((cell, colNumber) => {
-                rowData[headers[colNumber]] = cell.value;
-            });
-            data.push(rowData);
+            data.push(this.processRow(row.values));
         });
         return data;
     }
-    async readCsvFile(filepath) {
-        return new Promise((resolve, reject) => {
-            const data = [];
-            fs_1.default.createReadStream(filepath)
-                .pipe((0, csv_parser_1.default)())
-                .on('data', (row) => data.push(row))
-                .on('end', () => resolve(data))
-                .on('error', reject);
-        });
+    async readCSV(filePath) {
+        // Implement CSV reading logic
+        return [];
     }
-    async readJsonFile(filepath) {
-        const content = await fs_1.default.promises.readFile(filepath, 'utf8');
+    async readJSON(filePath) {
+        const content = await fs_1.default.promises.readFile(filePath, 'utf8');
         return JSON.parse(content);
     }
-    async syncDataWithSupabase(tableName, data) {
+    async syncWithSupabase(data) {
         try {
-            // Clear existing data
-            await this.clearTable(tableName);
-            // Insert new data
-            const { error } = await this.supabase
-                .from(tableName)
-                .insert(data);
-            if (error)
-                throw error;
-        }
-        catch (error) {
-            console.error(`Error syncing data for table ${tableName}:`, error);
-            throw error;
-        }
-    }
-    async clearTable(tableName) {
-        try {
-            const { error } = await this.supabase
-                .from(tableName)
-                .delete()
-                .neq('id', 0); // Delete all rows
-            if (error)
-                throw error;
-        }
-        catch (error) {
-            console.error(`Error clearing table ${tableName}:`, error);
-            throw error;
-        }
-    }
-    async exportToExcel(tableName, filepath) {
-        try {
-            const { data, error } = await this.supabase
-                .from(tableName)
-                .select('*');
-            if (error)
-                throw error;
-            const workbook = new exceljs_1.default.Workbook();
-            const worksheet = workbook.addWorksheet(tableName);
-            if (data && data.length > 0) {
-                // Add headers
-                const headers = Object.keys(data[0]);
-                worksheet.addRow(headers);
-                // Add data
-                data.forEach(row => {
-                    worksheet.addRow(Object.values(row));
-                });
-                // Style headers
-                worksheet.getRow(1).font = { bold: true };
-                worksheet.columns.forEach(column => {
-                    column.width = 15;
-                });
+            for (const row of data) {
+                await this.insertData('maintenance_data', row);
             }
-            await workbook.xlsx.writeFile(filepath);
         }
         catch (error) {
-            console.error(`Error exporting ${tableName} to Excel:`, error);
-            throw error;
+            console.error('Error syncing with Supabase:', error);
         }
     }
-    async exportToCsv(tableName, filepath) {
-        try {
-            const { data, error } = await this.supabase
-                .from(tableName)
-                .select('*');
-            if (error)
-                throw error;
-            if (!data || data.length === 0) {
-                await fs_1.default.promises.writeFile(filepath, '');
-                return;
-            }
-            const headers = Object.keys(data[0]).join(',');
-            const rows = data.map(row => Object.values(row).join(','));
-            const content = [headers, ...rows].join('\n');
-            await fs_1.default.promises.writeFile(filepath, content);
-        }
-        catch (error) {
-            console.error(`Error exporting ${tableName} to CSV:`, error);
-            throw error;
-        }
+    onFileChange(callback) {
+        this.eventEmitter.on('fileChange', callback);
     }
-    async exportToJson(tableName, filepath) {
-        try {
-            const { data, error } = await this.supabase
-                .from(tableName)
-                .select('*');
-            if (error)
-                throw error;
-            await fs_1.default.promises.writeFile(filepath, JSON.stringify(data, null, 2));
+    async exportToExcel(data, filename) {
+        const workbook = new exceljs_1.default.Workbook();
+        const worksheet = workbook.addWorksheet('Data');
+        // Add headers
+        const headers = Object.keys(data[0] || {});
+        worksheet.addRow(headers);
+        // Add data
+        data.forEach(row => {
+            worksheet.addRow(Object.values(row));
+        });
+        // Create exports directory if it doesn't exist
+        if (!fs_1.default.existsSync(this.exportsDir)) {
+            fs_1.default.mkdirSync(this.exportsDir, { recursive: true });
         }
-        catch (error) {
-            console.error(`Error exporting ${tableName} to JSON:`, error);
-            throw error;
-        }
-    }
-    // Cleanup
-    close() {
-        this.watcher.close();
+        const filePath = path_1.default.join(this.exportsDir, `${filename}.xlsx`);
+        await workbook.xlsx.writeFile(filePath);
+        return filePath;
     }
 }
 exports.DataRepository = DataRepository;
-exports.default = new DataRepository();

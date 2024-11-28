@@ -3,8 +3,10 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.MaintenanceService = void 0;
 const client_1 = require("@prisma/client");
 const maintenance_1 = require("../types/maintenance");
-class MaintenanceService {
+const SupabaseService_1 = require("./SupabaseService");
+class MaintenanceService extends SupabaseService_1.SupabaseService {
     constructor() {
+        super();
         this.prisma = new client_1.PrismaClient();
     }
     // Criar novo registro de manutenção
@@ -108,6 +110,33 @@ class MaintenanceService {
                 status: maintenance_1.MaintenanceStatus.SCHEDULED,
             },
         });
+    }
+    async getData(tableName) {
+        return this.getData(tableName);
+    }
+    async exportToExcel(data, filename) {
+        return this.exportToExcel(data, filename);
+    }
+    async predictMaintenanceNeeds(equipmentId) {
+        const data = await this.getData('maintenance_history');
+        // Implementar lógica de predição
+        return {
+            nextMaintenanceDate: new Date(),
+            confidence: 0.85
+        };
+    }
+    async registerMaintenance(data) {
+        return this.insertData('maintenance_history', data);
+    }
+    async getMaintenanceHistory(equipmentId) {
+        const { data, error } = await this.supabase
+            .from('maintenance_history')
+            .select('*')
+            .eq('equipmentId', equipmentId)
+            .order('date', { ascending: false });
+        if (error)
+            throw error;
+        return data;
     }
 }
 exports.MaintenanceService = MaintenanceService;

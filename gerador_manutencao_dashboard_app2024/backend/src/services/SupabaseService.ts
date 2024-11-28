@@ -1,11 +1,11 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import ExcelJS from 'exceljs';
 import path from 'path';
 import fs from 'fs';
 
 export class SupabaseService {
-  private supabase;
-  private exportsDir = path.join(__dirname, '../../../exports');
+  protected supabase: SupabaseClient;
+  protected exportsDir = path.join(__dirname, '../../../exports');
 
   constructor() {
     const supabaseUrl = process.env.SUPABASE_URL || '';
