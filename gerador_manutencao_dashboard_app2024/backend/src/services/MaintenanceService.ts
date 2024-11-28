@@ -1,0 +1,123 @@
+import { PrismaClient } from '@prisma/client';
+import { MaintenanceType, MaintenanceStatus } from '../types/maintenance';
+
+export class MaintenanceService {
+  private prisma: PrismaClient;
+
+  constructor() {
+    this.prisma = new PrismaClient();
+  }
+
+  // Criar novo registro de manutenção
+  async create(data: any) {
+    return this.prisma.maintenance.create({
+      data: {
+        ...data,
+        date: new Date(data.date),
+      },
+    });
+  }
+
+  // Buscar todas as manutenções
+  async findAll() {
+    return this.prisma.maintenance.findMany({
+      orderBy: { date: 'desc' },
+    });
+  }
+
+  // Obter dados históricos para análise preditiva
+  async getHistoricalData() {
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+    return this.prisma.maintenance.findMany({
+      where: {
+        date: {
+          gte: sixMonthsAgo,
+        },
+      },
+      orderBy: {
+        date: 'asc',
+      },
+    });
+  }
+
+  // Calcular estatísticas de manutenção
+  async calculateStats() {
+    const [preventive, corrective, predictive] = await Promise.all([
+      this.prisma.maintenance.count({
+        where: { type: MaintenanceType.PREVENTIVE },
+      }),
+      this.prisma.maintenance.count({
+        where: { type: MaintenanceType.CORRECTIVE },
+      }),
+      this.prisma.maintenance.count({
+        where: { type: MaintenanceType.PREDICTIVE },
+      }),
+    ]);
+
+    const total = preventive + corrective + predictive;
+
+    return {
+      total,
+      preventive: {
+        count: preventive,
+        percentage: (preventive / total) * 100,
+      },
+      corrective: {
+        count: corrective,
+        percentage: (corrective / total) * 100,
+      },
+      predictive: {
+        count: predictive,
+        percentage: (predictive / total) * 100,
+      },
+      efficiency: ((preventive + predictive) / total) * 100,
+    };
+  }
+
+  // Obter agenda de manutenções preventivas
+  async getPreventiveSchedule() {
+    const today = new Date();
+    const nextMonth = new Date();
+    nextMonth.setMonth(today.getMonth() + 1);
+
+    return this.prisma.maintenance.findMany({
+      where: {
+        type: MaintenanceType.PREVENTIVE,
+        date: {
+          gte: today,
+          lt: nextMonth,
+        },
+        status: MaintenanceStatus.SCHEDULED,
+      },
+      orderBy: {
+        date: 'asc',
+      },
+    });
+  }
+
+  // Criar manutenção corretiva
+  async createCorrective(data: any) {
+    return this.prisma.maintenance.create({
+      data: {
+        ...data,
+        type: MaintenanceType.CORRECTIVE,
+        date: new Date(data.date),
+        status: MaintenanceStatus.IN_PROGRESS,
+      },
+    });
+  }
+
+  // Criar manutenção preditiva baseada em análise
+  async createPredictive(data: any) {
+    return this.prisma.maintenance.create({
+      data: {
+        ...data,
+        type: MaintenanceType.PREDICTIVE,
+        date: new Date(data.date),
+        status: MaintenanceStatus.SCHEDULED,
+      },
+    });
+  }
+}
