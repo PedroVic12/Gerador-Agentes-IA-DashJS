@@ -1,29 +1,102 @@
+'use client';
+
 import { useState } from 'react';
+import {
+  AppBar,
+  Toolbar,
+  Typography,
+  IconButton,
+  Drawer,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
+  Box,
+  useTheme,
+  useMediaQuery,
+} from '@mui/material';
+import {
+  Menu as MenuIcon,
+  Dashboard as DashboardIcon,
+  Build as BuildIcon,
+  Assessment as AssessmentIcon,
+} from '@mui/icons-material';
+
+const menuItems = [
+  { text: 'Dashboard', icon: <DashboardIcon /> },
+  { text: 'Manutenção', icon: <BuildIcon /> },
+  { text: 'Relatórios', icon: <AssessmentIcon /> },
+];
 
 export default function Navigation() {
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+
+  const handleDrawerToggle = () => {
+    setMobileOpen(!mobileOpen);
+  };
+
+  const drawer = (
+    <List>
+      {menuItems.map((item) => (
+        <ListItem button key={item.text}>
+          <ListItemIcon sx={{ color: 'primary.main' }}>{item.icon}</ListItemIcon>
+          <ListItemText primary={item.text} />
+        </ListItem>
+      ))}
+    </List>
+  );
 
   return (
-    <nav className="bg-[#000000] border-b border-[#333] p-4 text-white">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold font-roboto">Dashboard</h1>
-        <button onClick={() => setMenuOpen(!menuOpen)} className="md:hidden">
-          <i className="fas fa-bars"></i>
-        </button>
-        <div className={`${menuOpen ? "block" : "hidden"} md:block`}>
-          <ul className="md:flex space-x-6">
-            <li>
-              <a href="#" className="hover:text-[#ff0000]">Dashboard</a>
-            </li>
-            <li>
-              <a href="#" className="hover:text-[#ff0000]">Maintenance</a>
-            </li>
-            <li>
-              <a href="#" className="hover:text-[#ff0000]">Reports</a>
-            </li>
-          </ul>
-        </div>
-      </div>
-    </nav>
+    <Box sx={{ flexGrow: 1 }}>
+      <AppBar position="static" color="transparent" elevation={0}>
+        <Toolbar>
+          <IconButton
+            color="inherit"
+            aria-label="open drawer"
+            edge="start"
+            onClick={handleDrawerToggle}
+            sx={{ mr: 2, display: { md: 'none' } }}
+          >
+            <MenuIcon />
+          </IconButton>
+          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+            Dashboard de Manutenção
+          </Typography>
+          <Box sx={{ display: { xs: 'none', md: 'flex' } }}>
+            {menuItems.map((item) => (
+              <IconButton
+                key={item.text}
+                color="inherit"
+                sx={{ ml: 2 }}
+                aria-label={item.text.toLowerCase()}
+              >
+                {item.icon}
+              </IconButton>
+            ))}
+          </Box>
+        </Toolbar>
+      </AppBar>
+
+      <Drawer
+        variant={isMobile ? 'temporary' : 'permanent'}
+        open={mobileOpen}
+        onClose={handleDrawerToggle}
+        ModalProps={{
+          keepMounted: true,
+        }}
+        sx={{
+          display: { xs: 'block', md: 'none' },
+          '& .MuiDrawer-paper': {
+            boxSizing: 'border-box',
+            width: 240,
+            backgroundColor: 'background.paper',
+          },
+        }}
+      >
+        {drawer}
+      </Drawer>
+    </Box>
   );
 }
