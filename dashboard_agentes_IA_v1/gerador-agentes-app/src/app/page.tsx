@@ -1,11 +1,44 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { ThemeProvider, createTheme } from '@mui/material/styles';
+import CssBaseline from '@mui/material/CssBaseline';
 import Navigation from '../components/Navigation';
 import StatusMetrics from '../components/StatusMetrics';
 import Charts from '../components/Charts';
 import Tables from '../components/Tables';
 import Gauge from '../components/Gauge';
+import Chatbot from '../components/Chatbot';
+
+// Create a theme instance
+const darkTheme = createTheme({
+  palette: {
+    mode: 'dark',
+    primary: {
+      main: '#ff0000',
+    },
+    background: {
+      default: '#000000',
+      paper: '#1a1a1a',
+    },
+  },
+  components: {
+    MuiButton: {
+      styleOverrides: {
+        root: {
+          borderRadius: 8,
+        },
+      },
+    },
+    MuiPaper: {
+      styleOverrides: {
+        root: {
+          borderRadius: 12,
+        },
+      },
+    },
+  },
+});
 
 export default function Home() {
   const sampleData = {
@@ -100,14 +133,18 @@ export default function Home() {
   }, [exercises]);
 
   return (
-    <div className="min-h-screen bg-[#000000]">
-      <Navigation />
-      <div className="p-6">
-        <Gauge />
-        <StatusMetrics />
-        <Tables sampleData={sampleData} />
-        <Charts sampleData={sampleData} />
+    <ThemeProvider theme={darkTheme}>
+      <CssBaseline />
+      <div className="min-h-screen bg-[#000000]">
+        <Navigation />
+        <div className="p-6">
+          <Gauge />
+          <StatusMetrics />
+          <Tables sampleData={sampleData} />
+          <Charts sampleData={sampleData} />
+        </div>
+        <Chatbot />
       </div>
-    </div>
+    </ThemeProvider>
   );
 }
