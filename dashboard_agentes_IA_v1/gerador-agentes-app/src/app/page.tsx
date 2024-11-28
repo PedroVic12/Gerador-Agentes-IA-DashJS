@@ -1,15 +1,22 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
-import dynamic from 'next/dynamic';
-
-// Import Plotly dynamically to avoid SSR issues
-const Plot = dynamic(() => import('react-plotly.js').then((mod) => mod.default), {
-  ssr: false,
-  loading: () => <div>Loading Chart...</div>
-});
+import { useState } from 'react';
+import Navigation from '../components/Navigation';
+import StatusMetrics from '../components/StatusMetrics';
+import Charts from '../components/Charts';
+import Tables from '../components/Tables';
+import Gauge from '../components/Gauge';
 
 export default function Home() {
+  const sampleData = {
+    maintenance: [
+      { date: "2024-01", value: 150, ships: 10, cost: 50000 },
+      { date: "2024-02", value: 180, ships: 15, cost: 75000 },
+      { date: "2024-03", value: 120, ships: 8, cost: 40000 },
+      { date: "2024-04", value: 200, ships: 20, cost: 100000 },
+    ],
+  };
+
   const [exercises, setExercises] = useState([
     {
       id: 1,
@@ -69,218 +76,37 @@ export default function Home() {
     days: ["Segunda", "Terça", "Quarta", "Quinta", "Sexta"],
   };
 
-  const handleCheck = useCallback(
-    (exerciseId: number, itemIndex: number) => {
-      setCompletedItems((prev) => {
-        const key = `${exerciseId}-${itemIndex}`;
-        const newState = { ...prev, [key]: !prev[key] };
+  const handleCheck = (exerciseId: number, itemIndex: number) => {
+    setCompletedItems((prev) => {
+      const key = `${exerciseId}-${itemIndex}`;
+      const newState = { ...prev, [key]: !prev[key] };
 
-        const completed = Object.values(newState).filter(Boolean).length;
-        const total = exercises.reduce((acc, ex) => acc + ex.items.length, 0);
+      const completed = Object.values(newState).filter(Boolean).length;
+      const total = exercises.reduce((acc, ex) => acc + ex.items.length, 0);
 
-        setStats({
-          totalCompleted: completed,
-          totalItems: total,
-          progress: Math.round((completed / total) * 100),
-        });
-
-        return newState;
+      setStats({
+        totalCompleted: completed,
+        totalItems: total,
+        progress: Math.round((completed / total) * 100),
       });
-    },
-    [exercises]
-  );
+
+      return newState;
+    });
+  };
 
   useEffect(() => {
     const total = exercises.reduce((acc, ex) => acc + ex.items.length, 0);
-    setStats(prev => ({
-      ...prev,
-      totalItems: total,
-    }));
+    setStats((prev) => ({ ...prev, totalItems: total }));
   }, [exercises]);
 
   return (
-    <div className="min-h-screen bg-[#f0f4f8]">
-      <div
-        className="fixed inset-0 bg-black bg-opacity-50 z-40"
-        style={{ display: isDrawerOpen ? "block" : "none" }}
-        onClick={() => setIsDrawerOpen(false)}
-      />
-
-      <div
-        className={`fixed top-0 left-0 h-full w-64 bg-white shadow-lg transform transition-transform duration-300 z-50 ${
-          isDrawerOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
-      >
-        <div className="p-4">
-          <h2 className="text-xl font-bold mb-4">Menu</h2>
-          <ul className="space-y-2">
-            <li className="p-2 hover:bg-gray-100 rounded cursor-pointer">
-              Dashboard
-            </li>
-            <li className="p-2 hover:bg-gray-100 rounded cursor-pointer">
-              Exercícios
-            </li>
-            <li className="p-2 hover:bg-gray-100 rounded cursor-pointer">
-              Quiz
-            </li>
-          </ul>
-        </div>
-      </div>
-
-      <div className="container mx-auto p-6">
-        <button
-          onClick={() => setIsDrawerOpen(true)}
-          className="mb-4 p-2 rounded bg-blue-500 text-white"
-        >
-          Menu
-        </button>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="col-span-2">
-            <div className="bg-white p-6 rounded-lg shadow-md">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold">Exercícios do Dia</h2>
-                <button
-                  onClick={() => setQuizMode(!quizMode)}
-                  className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-                >
-                  {quizMode ? "Voltar aos Exercícios" : "Modo Quiz"}
-                </button>
-              </div>
-
-              {!quizMode && (
-                <div className="space-y-4">
-                  {exercises.map((exercise) => (
-                    <div
-                      key={exercise.id}
-                      className="border-b pb-4 last:border-b-0"
-                    >
-                      <h3 className="text-xl font-semibold mb-3">
-                        {exercise.name}
-                      </h3>
-                      <div className="space-y-2">
-                        {exercise.items.map((item, index) => {
-                          const isChecked =
-                            completedItems[`${exercise.id}-${index}`];
-                          return (
-                            <div
-                              key={index}
-                              className={`flex items-center p-2 rounded ${
-                                isChecked ? "bg-green-100" : "bg-gray-50"
-                              }`}
-                            >
-                              <input
-                                type="checkbox"
-                                checked={isChecked}
-                                onChange={() => handleCheck(exercise.id, index)}
-                                className="h-5 w-5 text-blue-600"
-                              />
-                              <span className="ml-3">{item}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div>
-            <div className="bg-white p-6 rounded-lg shadow-md">
-              <h2 className="text-2xl font-bold mb-6">Dashboard</h2>
-              <div className="space-y-6">
-                <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-lg">Progresso</span>
-                    <span className="font-bold">{stats.progress}%</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2.5">
-                    <div
-                      className="bg-blue-600 h-2.5 rounded-full transition-all duration-500"
-                      style={{ width: `${stats.progress}%` }}
-                    ></div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-blue-50 p-4 rounded-lg">
-                    <div className="text-3xl font-bold text-blue-600">
-                      {stats.totalCompleted}
-                    </div>
-                    <div className="text-sm text-gray-600">Completados</div>
-                  </div>
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <div className="text-3xl font-bold text-gray-600">
-                      {stats.totalItems}
-                    </div>
-                    <div className="text-sm text-gray-600">Total</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="col-span-3">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-white p-6 rounded-lg shadow-md">
-                <h3 className="text-xl font-bold mb-4">Progresso Semanal</h3>
-                <Plot
-                  data={[
-                    {
-                      x: workoutData.days,
-                      y: workoutData.pullups,
-                      type: 'scatter',
-                      mode: 'lines+markers',
-                      name: 'Pullups',
-                    },
-                    {
-                      x: workoutData.days,
-                      y: workoutData.flexoes,
-                      type: 'scatter',
-                      mode: 'lines+markers',
-                      name: 'Flexões',
-                    },
-                  ]}
-                  layout={{
-                    title: 'Progresso Semanal',
-                    xaxis: { title: 'Dias' },
-                    yaxis: { title: 'Repetições' },
-                    autosize: true,
-                    height: 400,
-                  }}
-                  style={{ width: '100%' }}
-                  config={{ responsive: true }}
-                />
-              </div>
-
-              <div className="bg-white p-6 rounded-lg shadow-md">
-                <h3 className="text-xl font-bold mb-4">
-                  Distribuição de Exercícios
-                </h3>
-                <Plot
-                  data={[
-                    {
-                      values: [stats.totalCompleted, stats.totalItems - stats.totalCompleted],
-                      labels: ['Completo', 'Restante'],
-                      type: 'pie',
-                      hole: 0.4,
-                    },
-                  ]}
-                  layout={{
-                    title: 'Progresso Total',
-                    height: 300,
-                    showlegend: true,
-                    margin: { t: 40, b: 40, l: 40, r: 40 },
-                  }}
-                  style={{ width: '100%' }}
-                  config={{ responsive: true }}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
+    <div className="min-h-screen bg-[#000000]">
+      <Navigation />
+      <div className="p-6">
+        <Gauge />
+        <StatusMetrics />
+        <Tables sampleData={sampleData} />
+        <Charts sampleData={sampleData} />
       </div>
     </div>
   );
