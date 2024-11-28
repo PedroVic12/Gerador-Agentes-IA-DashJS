@@ -1,29 +1,13 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import { Line, Pie } from 'react-chartjs-2';
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend,
-  ArcElement,
-} from 'chart.js';
+import dynamic from 'next/dynamic';
 
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend,
-  ArcElement
-);
+// Import Plotly dynamically to avoid SSR issues
+const Plot = dynamic(() => import('react-plotly.js').then((mod) => mod.default), {
+  ssr: false,
+  loading: () => <div>Loading Chart...</div>
+});
 
 export default function Home() {
   const [exercises, setExercises] = useState([
@@ -105,37 +89,6 @@ export default function Home() {
     },
     [exercises]
   );
-
-  const lineChartData = {
-    labels: workoutData.days,
-    datasets: [
-      {
-        label: 'Pull-ups',
-        data: workoutData.pullups,
-        borderColor: 'rgb(75, 192, 192)',
-        tension: 0.1,
-      },
-      {
-        label: 'Flexões',
-        data: workoutData.flexoes,
-        borderColor: 'rgb(255, 99, 132)',
-        tension: 0.1,
-      },
-    ],
-  };
-
-  const averagePullups = workoutData.pullups.reduce((a, b) => a + b, 0) / workoutData.pullups.length;
-  const averageFlexoes = workoutData.flexoes.reduce((a, b) => a + b, 0) / workoutData.flexoes.length;
-
-  const pieChartData = {
-    labels: ['Média Pull-ups', 'Média Flexões'],
-    datasets: [
-      {
-        data: [averagePullups, averageFlexoes],
-        backgroundColor: ['rgb(75, 192, 192)', 'rgb(255, 99, 132)'],
-      },
-    ],
-  };
 
   useEffect(() => {
     const total = exercises.reduce((acc, ex) => acc + ex.items.length, 0);
@@ -273,18 +226,57 @@ export default function Home() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="bg-white p-6 rounded-lg shadow-md">
                 <h3 className="text-xl font-bold mb-4">Progresso Semanal</h3>
-                <div className="relative" style={{ height: "300px" }}>
-                  <Line data={lineChartData} options={{ maintainAspectRatio: false }} />
-                </div>
+                <Plot
+                  data={[
+                    {
+                      x: workoutData.days,
+                      y: workoutData.pullups,
+                      type: 'scatter',
+                      mode: 'lines+markers',
+                      name: 'Pullups',
+                    },
+                    {
+                      x: workoutData.days,
+                      y: workoutData.flexoes,
+                      type: 'scatter',
+                      mode: 'lines+markers',
+                      name: 'Flexões',
+                    },
+                  ]}
+                  layout={{
+                    title: 'Progresso Semanal',
+                    xaxis: { title: 'Dias' },
+                    yaxis: { title: 'Repetições' },
+                    autosize: true,
+                    height: 400,
+                  }}
+                  style={{ width: '100%' }}
+                  config={{ responsive: true }}
+                />
               </div>
 
               <div className="bg-white p-6 rounded-lg shadow-md">
                 <h3 className="text-xl font-bold mb-4">
                   Distribuição de Exercícios
                 </h3>
-                <div className="relative" style={{ height: "300px" }}>
-                  <Pie data={pieChartData} options={{ maintainAspectRatio: false }} />
-                </div>
+                <Plot
+                  data={[
+                    {
+                      values: [stats.totalCompleted, stats.totalItems - stats.totalCompleted],
+                      labels: ['Completo', 'Restante'],
+                      type: 'pie',
+                      hole: 0.4,
+                    },
+                  ]}
+                  layout={{
+                    title: 'Progresso Total',
+                    height: 300,
+                    showlegend: true,
+                    margin: { t: 40, b: 40, l: 40, r: 40 },
+                  }}
+                  style={{ width: '100%' }}
+                  config={{ responsive: true }}
+                />
               </div>
             </div>
           </div>
