@@ -1,0 +1,141 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: maintenance-frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: maintenance-frontend
+  template:
+    metadata:
+      labels:
+        app: maintenance-frontend
+    spec:
+      containers:
+      - name: frontend
+        image: maintenance-frontend:latest
+        ports:
+        - containerPort: 3000
+        env:
+        - name: VITE_API_URL
+          value: "http://maintenance-backend-service:3001"
+        - name: VITE_SUPABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: supabase-secrets
+              key: url
+        - name: VITE_SUPABASE_ANON_KEY
+          valueFrom:
+            secretKeyRef:
+              name: supabase-secrets
+              key: anon_key
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: maintenance-backend
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: maintenance-backend
+  template:
+    metadata:
+      labels:
+        app: maintenance-backend
+    spec:
+      containers:
+      - name: backend
+        image: maintenance-backend:latest
+        ports:
+        - containerPort: 3001
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: SUPABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: supabase-secrets
+              key: url
+        - name: SUPABASE_KEY
+          valueFrom:
+            secretKeyRef:
+              name: supabase-secrets
+              key: service_key
+        - name: REDIS_URL
+          value: "redis://redis-service:6379"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+      - name: redis
+        image: redis:alpine
+        ports:
+        - containerPort: 6379
+        volumeMounts:
+        - name: redis-data
+          mountPath: /data
+      volumes:
+      - name: redis-data
+        persistentVolumeClaim:
+          claimName: redis-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: maintenance-frontend-service
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    targetPort: 3000
+  selector:
+    app: maintenance-frontend
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: maintenance-backend-service
+spec:
+  type: ClusterIP
+  ports:
+  - port: 3001
+    targetPort: 3001
+  selector:
+    app: maintenance-backend
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-service
+spec:
+  type: ClusterIP
+  ports:
+  - port: 6379
+    targetPort: 6379
+  selector:
+    app: redis
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: redis-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
