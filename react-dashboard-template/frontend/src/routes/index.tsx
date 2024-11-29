@@ -1,13 +1,13 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
-import { DashboardLayout } from '@/layouts/dashboard'
-import { AuthLayout } from '@/layouts/auth'
-import { LoginPage } from '@/pages/auth/login'
-import { RegisterPage } from '@/pages/auth/register'
-import { DashboardPage } from '@/pages/dashboard'
-import { UsersPage } from '@/pages/users'
-import { SettingsPage } from '@/pages/settings'
-import { NotFoundPage } from '@/pages/404'
-import { ProtectedRoute } from '@/components/protected-route'
+import { DashboardLayout } from '../layouts/dashboard'
+import { AuthLayout } from '../layouts/auth'
+import { LoginPage } from '../pages/auth/login'
+import { RegisterPage } from '../pages/auth/register'
+import { DashboardPage } from '../pages/dashboard'
+import { UsersPage } from '../pages/users'
+import { SettingsPage } from '../pages/settings'
+import { NotFoundPage } from '../pages/404'
+import { ProtectedRoute } from '../components/protected-route'
 
 export function AppRoutes() {
   return (

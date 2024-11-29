@@ -102,4 +102,6 @@ def delete_client(client_id):
     return jsonify({'error': 'Client not found'}), 404
 
 if __name__ == '__main__':
-    app.run(debug=True, port= 3333)
+    app.run(debug=True, port= 7777)
+
+    

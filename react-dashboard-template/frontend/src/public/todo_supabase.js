@@ -7,7 +7,7 @@ function Page() {
 
   useEffect(() => {
     function getTodos() {
-      const { data: todos } = await supabase.from('todos').select()
+      const { data: todos } =  supabase.from('todos').select()
 
       if (todos.length > 1) {
         setTodos(todos)
