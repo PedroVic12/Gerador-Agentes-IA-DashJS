@@ -17,25 +17,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { ChartManager, type ChartData, type ChartConfig } from "@/lib/ChartManager"
+import { IChartProps } from "@/lib/interfaces/IChartData"
+import { AreaChartService } from "@/lib/services/AreaChartService"
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 
-interface AreaChartProps {
-  data: ChartData[]
-  config: ChartConfig
-  title: string
-  description: string
-}
-
-export function AreaChart({ data, config, title, description }: AreaChartProps) {
+export function AreaChart({ data, config, title, description }: IChartProps) {
   const [timeRange, setTimeRange] = React.useState("90d")
-  const chartManager = new ChartManager(data, config)
+  const chartService = React.useMemo(() => new AreaChartService(data, config, timeRange), [data, config, timeRange])
 
-  const filteredData = React.useMemo(() => {
-    const endDate = new Date(data[data.length - 1].date!)
-    const days = timeRange === "90d" ? 90 : timeRange === "30d" ? 30 : 7
-    return chartManager.filterDataByDateRange(endDate, days)
-  }, [data, timeRange, chartManager])
+  const filteredData = React.useMemo(() => chartService.filterData(), [chartService])
 
   return (
     <Card>
@@ -44,7 +34,10 @@ export function AreaChart({ data, config, title, description }: AreaChartProps) 
           <CardTitle>{title}</CardTitle>
           <CardDescription>{description}</CardDescription>
         </div>
-        <Select value={timeRange} onValueChange={setTimeRange}>
+        <Select value={timeRange} onValueChange={(value) => {
+          setTimeRange(value)
+          chartService.setTimeRange(value)
+        }}>
           <SelectTrigger
             className="w-[160px] rounded-lg sm:ml-auto"
             aria-label="Select time range"
@@ -103,13 +96,13 @@ export function AreaChart({ data, config, title, description }: AreaChartProps) 
               axisLine={false}
               tickMargin={8}
               minTickGap={32}
-              tickFormatter={(value) => ChartManager.formatDate(value)}
+              tickFormatter={(value) => AreaChartService.formatDate(value)}
             />
             <ChartTooltip
               cursor={false}
               content={
                 <ChartTooltipContent
-                  labelFormatter={(value) => ChartManager.formatDate(value)}
+                  labelFormatter={(value) => AreaChartService.formatDate(value)}
                   indicator="dot"
                 />
               }

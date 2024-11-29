@@ -11,24 +11,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { ChartManager, type ChartData, type ChartConfig } from "@/lib/ChartManager"
+import { IChartProps } from "@/lib/interfaces/IChartData"
+import { BarChartService } from "@/lib/services/BarChartService"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 
-interface BarChartProps {
-  data: ChartData[]
-  config: ChartConfig
-  title: string
-  description: string
-}
-
-export function BarChart({ data, config, title, description }: BarChartProps) {
-  const chartManager = new ChartManager(data, config)
-  const monthlyData = chartManager.getMonthlyData()
-  
-  // Calculate trend
-  const currentMonth = monthlyData.slice(-1)[0]
-  const previousMonth = monthlyData.slice(-2)[0]
-  const trend = chartManager.calculateTrend([currentMonth], [previousMonth])
+export function BarChart({ data, config, title, description }: IChartProps) {
+  const chartService = React.useMemo(() => new BarChartService(data, config), [data, config])
+  const monthlyData = React.useMemo(() => chartService.filterData(), [chartService])
+  const trend = React.useMemo(() => chartService.calculateTrend(), [chartService])
 
   return (
     <Card>
