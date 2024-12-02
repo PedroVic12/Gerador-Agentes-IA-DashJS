@@ -1,0 +1,7 @@
+quart
+quart-cors
+google-generativeai
+playwright
+pyautogui
+openpyxl>=3.1.0
+hypercorn
