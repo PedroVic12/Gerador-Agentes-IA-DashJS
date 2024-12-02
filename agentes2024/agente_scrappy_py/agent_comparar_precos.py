@@ -298,7 +298,7 @@ class PriceScraperAgent:
         
         # Busca em diferentes lojas
         all_results.extend(self.search_mercadolivre(query, max_results))
-        all_results.extend(self.search_magalu(query, max_results))
+        #all_results.extend(self.search_magalu(query, max_results))
         
         # Ordena por preço e remove produtos com preço zero
         valid_results = [r for r in all_results if r.price > 0]
