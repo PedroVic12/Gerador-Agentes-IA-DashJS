@@ -1,19 +1,30 @@
 """
-Agente de comparação de preços que combina AgentQL, Playwright e BeautifulSoup
+Agente de comparação de preços que utiliza Selenium e BeautifulSoup
 para extrair e comparar preços de produtos em diferentes sites de e-commerce.
 """
 
-import agentql
-from playwright.sync_api import sync_playwright
-from bs4 import BeautifulSoup
 import json
 from datetime import datetime
 import os
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional
 import logging
 from dataclasses import dataclass
 from urllib.parse import quote_plus
 import re
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException, NoSuchElementException
+from bs4 import BeautifulSoup
+import time
+
+# Configuração de logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 @dataclass
 class ProductInfo:
@@ -27,293 +38,279 @@ class ProductInfo:
     available: bool = True
     additional_info: Dict = None
 
-class PriceComparisonAgent:
+
+def pesquisarPlaywright(driver, query, max_results=5):
+    # Formata a URL de busca
+    url = f"https://www.mercadolivre.com.br/jm/search?as_word={quote_plus(query)}"
+    driver.get(url)
+    time.sleep(2)  # Pequena pausa para carregar o conteúdo dinâmico
+
+    # Espera os resultados carregarem
+    driver.find_element(By.CLASS_NAME, "ui-search-layout__item")
+
+    # Obtém o HTML e cria o objeto BeautifulSoup
+    soup = BeautifulSoup(driver.page_source, 'html.parser')
+
+    # Encontra todos os itens de produto
+    items = soup.select('[data-item-id]')[:max_results]
+
+    return items
+
+def extrairInformacoes(item, driver):
+    # Extrai o nome do produto
+    name = item.select_one('[data-item-id] .ui-search-item__title').text.strip()
+
+    # Extrai o preço do produto
+    price = item.select_one('[data-item-id] .ui-search-price__second-line').text.strip()
+
+    # Extrai a loja do produto
+    store = item.select_one('[data-item-id] .ui-search-item__group--buy').text.strip()
+
+    # Extrai a URL do produto
+    url = item.select_one('[data-item-id] a').get('href')
+
+    # Cria o objeto ProductInfo
+    product_info = ProductInfo(name=name, price=price, store=store, url=url, timestamp=datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+    return product_info
+
+
+
+
+class PriceScraperAgent:
     """Agente para comparação de preços em diferentes e-commerce."""
     
     def __init__(self, headless: bool = True, save_dir: str = "price_data"):
         """
-        Inicializa o agente de comparação de preços.
+        Inicializa o agente de scraping de preços.
         
         Args:
             headless: Se True, executa o navegador em modo headless
             save_dir: Diretório para salvar os dados extraídos
         """
-        self.headless = headless
         self.save_dir = save_dir
         os.makedirs(save_dir, exist_ok=True)
         
-        # Configuração de logging
-        self.logger = logging.getLogger(__name__)
-        self.logger.setLevel(logging.INFO)
+        # Configuração do Selenium
+        self.options = webdriver.ChromeOptions()
+        if headless:
+            self.options.add_argument("--headless")
+        self.options.add_argument("--no-sandbox")
+        self.options.add_argument("--disable-dev-shm-usage")
+        self.options.add_argument("--disable-gpu")
+        self.options.add_argument("--window-size=1920,1080")
         
-        if not self.logger.handlers:
-            handler = logging.StreamHandler()
-            formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-            handler.setFormatter(formatter)
-            self.logger.addHandler(handler)
-            
-        # Headers para requisições
-        self.headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-            'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
-        }
-        
-        # Queries GraphQL para diferentes sites
-        self.queries = {
-            'amazon': """
-                {
-                    product {
-                        name
-                        price(currency: BRL)
-                        availability
-                    }
-                }
-            """,
-            'mercadolivre': """
-                {
-                    item {
-                        title
-                        price
-                        condition
-                        stock
-                    }
-                }
-            """,
-            'magalu': """
-                {
-                    product {
-                        name
-                        price
-                        installments
-                        availability
-                    }
-                }
-            """
-        }
+        # User agent para parecer mais com um navegador real
+        self.options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+    
+    def _get_driver(self):
+        """Cria e retorna uma nova instância do webdriver."""
+        return webdriver.Chrome(options=self.options)
     
     def _save_to_json(self, data: Dict, prefix: str = "price_data") -> str:
-        """
-        Salva os dados em um arquivo JSON.
-        
-        Args:
-            data: Dados para salvar
-            prefix: Prefixo do nome do arquivo
-            
-        Returns:
-            Caminho do arquivo salvo
-        """
+        """Salva os dados em um arquivo JSON."""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = os.path.join(self.save_dir, f"{prefix}_{timestamp}.json")
         
         try:
             with open(filename, 'w', encoding='utf-8') as f:
                 json.dump(data, f, ensure_ascii=False, indent=4)
-            self.logger.info(f"Dados salvos em: {filename}")
+            logger.info(f"Dados salvos em: {filename}")
             return filename
         except Exception as e:
-            self.logger.error(f"Erro ao salvar arquivo: {str(e)}")
+            logger.error(f"Erro ao salvar arquivo: {str(e)}")
             return ""
     
     def _extract_price(self, text: str) -> float:
-        """
-        Extrai o valor numérico de um texto contendo preço.
-        
-        Args:
-            text: Texto contendo o preço
-            
-        Returns:
-            Valor do preço como float
-        """
+        """Extrai o valor numérico de um texto contendo preço."""
         try:
-            # Remove caracteres não numéricos exceto ponto e vírgula
             price_text = re.sub(r'[^\d.,]', '', text)
-            # Substitui vírgula por ponto
             price_text = price_text.replace(',', '.')
-            # Converte para float
             return float(price_text)
         except ValueError:
             return 0.0
     
-    def search_product(self, product_name: str, max_results: int = 5) -> List[ProductInfo]:
+    def _wait_and_get_element(self, driver, by, value, timeout=10):
+        """Espera e retorna um elemento quando disponível."""
+        try:
+            element = WebDriverWait(driver, timeout).until(
+                EC.presence_of_element_located((by, value))
+            )
+            return element
+        except TimeoutException:
+            logger.warning(f"Timeout esperando por elemento: {value}")
+            return None
+    
+    def search_mercadolivre(self, query: str, max_results: int = 5) -> List[ProductInfo]:
         """
-        Busca um produto em diferentes e-commerces.
+        Busca produtos no Mercado Livre.
         
         Args:
-            product_name: Nome do produto para buscar
-            max_results: Número máximo de resultados por site
-            
+            query: Termo de busca
+            max_results: Número máximo de resultados
+        
         Returns:
             Lista de ProductInfo com os resultados encontrados
         """
         results = []
+        driver = self._get_driver()
         
-        with sync_playwright() as p:
-            browser = p.chromium.launch(headless=self.headless)
+        try:
+            # Formata a URL de busca
+            url = f"https://www.mercadolivre.com.br/jm/search?as_word={quote_plus(query)}"
+            logger.info(f"Buscando em Mercado Livre: {query}")
             
-            try:
-                # Configuração da página
-                page = agentql.wrap(browser.new_page())
-                page.set_default_timeout(30000)
-                
-                # Lista de sites para buscar
-                sites = {
-                    'mercadolivre': f'https://www.mercadolivre.com.br/jm/search?as_word={quote_plus(product_name)}',
-                    'magalu': f'https://www.magazineluiza.com.br/busca/{quote_plus(product_name)}',
-                    'amazon': f'https://www.amazon.com.br/s?k={quote_plus(product_name)}'
-                }
-                
-                for store, url in sites.items():
-                    self.logger.info(f"Buscando em {store}: {product_name}")
+            # Acessa a página
+            driver.get(url)
+            time.sleep(2)  # Pequena pausa para carregar o conteúdo dinâmico
+            
+            # Espera os resultados carregarem
+            self._wait_and_get_element(driver, By.CLASS_NAME, "ui-search-layout__item")
+            
+            # Obtém o HTML e cria o objeto BeautifulSoup
+            soup = BeautifulSoup(driver.page_source, 'html.parser')
+            
+            # Encontra todos os itens de produto
+            items = soup.select(".ui-search-layout__item")[:max_results]
+            
+            for item in items:
+                try:
+                    # Extrai informações do produto
+                    name_elem = item.select_one(".ui-search-item__title")
+                    price_elem = item.select_one(".price-tag-amount")
+                    link_elem = item.select_one(".ui-search-link")
                     
-                    try:
-                        # Navega para a página
-                        page.goto(url)
-                        page.wait_for_load_state('networkidle')
+                    if name_elem and price_elem and link_elem:
+                        name = name_elem.text.strip()
+                        price = self._extract_price(price_elem.text)
+                        url = link_elem['href']
                         
-                        # Usa AgentQL para extrair dados
-                        response = page.query_data(self.queries[store])
-                        
-                        # Usa BeautifulSoup como fallback
-                        if not response:
-                            html = page.content()
-                            soup = BeautifulSoup(html, 'html.parser')
-                            
-                            # Extrai dados com base no site
-                            if store == 'mercadolivre':
-                                items = soup.select('div.ui-search-result__content-wrapper')[:max_results]
-                                for item in items:
-                                    name = item.select_one('.ui-search-item__title')
-                                    price = item.select_one('.price-tag-amount')
-                                    link = item.select_one('a.ui-search-link')
-                                    
-                                    if name and price and link:
-                                        results.append(ProductInfo(
-                                            name=name.text.strip(),
-                                            price=self._extract_price(price.text),
-                                            store=store,
-                                            url=link['href'],
-                                            timestamp=datetime.now().isoformat()
-                                        ))
-                            
-                            elif store == 'magalu':
-                                items = soup.select('div[data-testid="product-card"]')[:max_results]
-                                for item in items:
-                                    name = item.select_one('[data-testid="product-title"]')
-                                    price = item.select_one('[data-testid="price-value"]')
-                                    link = item.select_one('a')
-                                    
-                                    if name and price and link:
-                                        results.append(ProductInfo(
-                                            name=name.text.strip(),
-                                            price=self._extract_price(price.text),
-                                            store=store,
-                                            url=link['href'],
-                                            timestamp=datetime.now().isoformat()
-                                        ))
-                            
-                            elif store == 'amazon':
-                                items = soup.select('div[data-component-type="s-search-result"]')[:max_results]
-                                for item in items:
-                                    name = item.select_one('h2 span')
-                                    price = item.select_one('.a-price-whole')
-                                    link = item.select_one('h2 a')
-                                    
-                                    if name and price and link:
-                                        results.append(ProductInfo(
-                                            name=name.text.strip(),
-                                            price=self._extract_price(price.text),
-                                            store=store,
-                                            url='https://www.amazon.com.br' + link['href'],
-                                            timestamp=datetime.now().isoformat()
-                                        ))
-                    
-                    except Exception as e:
-                        self.logger.error(f"Erro ao buscar em {store}: {str(e)}")
-                        continue
+                        product = ProductInfo(
+                            name=name,
+                            price=price,
+                            store="Mercado Livre",
+                            url=url,
+                            timestamp=datetime.now().isoformat()
+                        )
+                        results.append(product)
+                        logger.info(f"Produto encontrado: {name} - R$ {price:.2f}")
                 
-            finally:
-                browser.close()
+                except Exception as e:
+                    logger.error(f"Erro ao processar item: {str(e)}")
+                    continue
+            
+        except Exception as e:
+            logger.error(f"Erro ao buscar no Mercado Livre: {str(e)}")
+        
+        finally:
+            driver.quit()
         
         # Salva os resultados
         if results:
             data = {
-                'query': product_name,
+                'query': query,
                 'timestamp': datetime.now().isoformat(),
                 'results': [vars(r) for r in results]
             }
-            self._save_to_json(data, f"search_{product_name.replace(' ', '_')}")
+            self._save_to_json(data, f"mercadolivre_search_{query.replace(' ', '_')}")
         
         return results
     
-    def get_best_deals(self, product_name: str, max_results: int = 5) -> List[ProductInfo]:
+    def search_magalu(self, query: str, max_results: int = 5) -> List[ProductInfo]:
         """
-        Retorna as melhores ofertas para um produto.
+        Busca produtos no Magazine Luiza.
         
         Args:
-            product_name: Nome do produto
+            query: Termo de busca
             max_results: Número máximo de resultados
-            
+        
         Returns:
-            Lista de ProductInfo ordenada por preço
+            Lista de ProductInfo com os resultados encontrados
         """
-        results = self.search_product(product_name, max_results)
-        return sorted(results, key=lambda x: x.price)[:max_results]
+        results = []
+        driver = self._get_driver()
+        
+        try:
+            url = f"https://www.magazineluiza.com.br/busca/{quote_plus(query)}"
+            logger.info(f"Buscando em Magazine Luiza: {query}")
+            
+            driver.get(url)
+            time.sleep(2)
+            
+            # Espera os produtos carregarem
+            self._wait_and_get_element(driver, By.DATA_TESTID, "product-card")
+            
+            soup = BeautifulSoup(driver.page_source, 'html.parser')
+            items = soup.select('[data-testid="product-card"]')[:max_results]
+            
+            for item in items:
+                try:
+                    name_elem = item.select_one('[data-testid="product-title"]')
+                    price_elem = item.select_one('[data-testid="price-value"]')
+                    link_elem = item.select_one('a')
+                    
+                    if name_elem and price_elem and link_elem:
+                        name = name_elem.text.strip()
+                        price = self._extract_price(price_elem.text)
+                        url = link_elem['href']
+                        
+                        product = ProductInfo(
+                            name=name,
+                            price=price,
+                            store="Magazine Luiza",
+                            url=url,
+                            timestamp=datetime.now().isoformat()
+                        )
+                        results.append(product)
+                        logger.info(f"Produto encontrado: {name} - R$ {price:.2f}")
+                
+                except Exception as e:
+                    logger.error(f"Erro ao processar item: {str(e)}")
+                    continue
+            
+        except Exception as e:
+            logger.error(f"Erro ao buscar no Magazine Luiza: {str(e)}")
+        
+        finally:
+            driver.quit()
+        
+        if results:
+            data = {
+                'query': query,
+                'timestamp': datetime.now().isoformat(),
+                'results': [vars(r) for r in results]
+            }
+            self._save_to_json(data, f"magalu_search_{query.replace(' ', '_')}")
+        
+        return results
     
-    def monitor_price(self, url: str) -> Optional[ProductInfo]:
+    def get_best_deals(self, query: str, max_results: int = 5) -> List[ProductInfo]:
         """
-        Monitora o preço de um produto específico.
+        Busca as melhores ofertas em diferentes lojas.
         
         Args:
-            url: URL do produto
-            
+            query: Termo de busca
+            max_results: Número máximo de resultados por loja
+        
         Returns:
-            ProductInfo com as informações atualizadas do produto
+            Lista combinada de resultados ordenada por preço
         """
-        with sync_playwright() as p:
-            browser = p.chromium.launch(headless=self.headless)
-            
-            try:
-                page = agentql.wrap(browser.new_page())
-                page.goto(url)
-                page.wait_for_load_state('networkidle')
-                
-                # Tenta extrair informações com base no domínio
-                domain = re.search(r'https?://(?:www\.)?([^/]+)', url).group(1)
-                
-                if 'mercadolivre' in domain:
-                    name = page.query_selector('.ui-pdp-title').text_content()
-                    price = page.query_selector('.andes-money-amount__fraction').text_content()
-                elif 'magazineluiza' in domain:
-                    name = page.query_selector('[data-testid="heading-product-title"]').text_content()
-                    price = page.query_selector('[data-testid="price-value"]').text_content()
-                elif 'amazon' in domain:
-                    name = page.query_selector('#productTitle').text_content()
-                    price = page.query_selector('.a-price-whole').text_content()
-                else:
-                    self.logger.error(f"Site não suportado: {domain}")
-                    return None
-                
-                return ProductInfo(
-                    name=name.strip(),
-                    price=self._extract_price(price),
-                    store=domain,
-                    url=url,
-                    timestamp=datetime.now().isoformat()
-                )
-            
-            except Exception as e:
-                self.logger.error(f"Erro ao monitorar preço: {str(e)}")
-                return None
-            
-            finally:
-                browser.close()
+        all_results = []
+        
+        # Busca em diferentes lojas
+        all_results.extend(self.search_mercadolivre(query, max_results))
+        all_results.extend(self.search_magalu(query, max_results))
+        
+        # Ordena por preço e remove produtos com preço zero
+        valid_results = [r for r in all_results if r.price > 0]
+        sorted_results = sorted(valid_results, key=lambda x: x.price)
+        
+        return sorted_results[:max_results]
 
 
 def main():
     """Função principal para demonstração do agente."""
     # Cria uma instância do agente
-    agent = PriceComparisonAgent(headless=False, save_dir="dados_precos")
+    agent = PriceScraperAgent(headless=True, save_dir="dados_precos")
     
     # Exemplo de busca por um produto
     product_name = "smartphone samsung galaxy"
@@ -329,14 +326,6 @@ def main():
         print(f"   Preço: R$ {deal.price:.2f}")
         print(f"   Loja: {deal.store}")
         print(f"   URL: {deal.url}")
-    
-    # Exemplo de monitoramento de preço
-    if best_deals:
-        print("\nMonitorando o melhor preço encontrado...")
-        current_price = agent.monitor_price(best_deals[0].url)
-        if current_price:
-            print(f"\nPreço atual: R$ {current_price.price:.2f}")
-            print(f"Última atualização: {current_price.timestamp}")
 
 
 if __name__ == "__main__":

@@ -8,7 +8,37 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 import pyautogui
 import time
+import agentql
+import playwright
 
+# Configurações da interface
+ft.app(target=ScraperApp().main, view=ft.WEB_BROWSER)
+
+# Configurações do Selenium
+chrome_options = Options()
+chrome_options.add_argument("--headless")
+
+# Configurações do Playwright
+playwright_options = {
+    "headless": True
+}
+
+# Configurações do AgentQL
+agentql_options = {
+    "headless": True
+}
+
+class ScraperPlaywright:
+    def __init__(self):
+        self.driver = webdriver.Chrome(options=chrome_options)
+
+    def close(self):
+        self.driver.quit()
+
+    def pesquisar(self, query, max_results=5):
+        return pesquisarPlaywright(self.driver, query, max_results)
+
+    
 class ScraperApp:
     def __init__(self):
         self.current_screenshot = None
