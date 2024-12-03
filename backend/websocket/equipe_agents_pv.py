@@ -1,8 +1,12 @@
 import google.generativeai as genai
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
 
 # Configure the Gemini API
-GOOGLE_API_KEY = "AIzaSyDAPQnsTQxOL5HJ0zpjdYZKxbQ-ekmi3S0"
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 genai.configure(api_key=GOOGLE_API_KEY)
 
 # Initialize the model
@@ -11,7 +15,6 @@ if model:
     print("Modelo iniciado com sucesso!")
 else:
     print("Erro ao iniciar o modelo.")
-    
 
 class Agent:
     def __init__(self, role, goal, backstory):
@@ -22,14 +25,53 @@ class Agent:
     def execute(self, task, attempts, tema):
         results = []
         for i in range(attempts):
-            prompt = f"Role: {self.role}\nGoal: {self.goal}\nBackstory: {self.backstory}\nTask: {task.description.format(tema=tema)}\nExpected Output: {task.expected_output}\nAttempt: {i+1}/{attempts}"
-            response = model.generate_content(prompt)
-            results.append(response.text)
+            prompt = f"""
+Role: {self.role}
+Goal: {self.goal}
+Backstory: {self.backstory}
+
+Context: You are working on the following topic: {tema}
+
+Tasks to complete:
+{task.description}
+
+Please provide your response in markdown format, including:
+- Headers for different sections
+- Bullet points where appropriate
+- Emphasis on important points
+- Clear structure and organization
+
+Expected Output: {task.expected_output}
+Attempt: {i+1}/{attempts}
+"""
+            try:
+                response = model.generate_content(prompt)
+                results.append(response.text)
+            except Exception as e:
+                print(f"Error in attempt {i+1}: {str(e)}")
+                results.append(f"Error in attempt {i+1}: {str(e)}")
         
         # Consolidate results
-        consolidated_prompt = f"Based on the following {attempts} attempts, provide a final consolidated response:\n\n" + "\n\n".join(results)
-        final_response = model.generate_content(consolidated_prompt)
-        return final_response.text
+        if len(results) > 1:
+            consolidated_prompt = f"""
+Please consolidate these {attempts} attempts into a final, well-structured markdown response:
+
+{results}
+
+Ensure the response is well-formatted in markdown with:
+- Clear headers
+- Proper sections
+- Bullet points where appropriate
+- Emphasis on key points
+"""
+            try:
+                final_response = model.generate_content(consolidated_prompt)
+                return final_response.text
+            except Exception as e:
+                print(f"Error in consolidation: {str(e)}")
+                return results[-1]  # Return the last result if consolidation fails
+        else:
+            return results[0] if results else "No results generated"
 
     def gerar_markdown(self, content):
         # Formatting content for markdown
@@ -37,7 +79,10 @@ class Agent:
         
         try:
             # Create markdown file
-            with open('documento.md', 'w', encoding='utf-8') as f:
+            path = "/home/pedrov12/Documentos/GitHub/Gerador-Agentes-IA-DashJS/backend/websocket/output"
+            output_dir = os.path.join(os.getcwd(), 'output')
+            os.makedirs(output_dir, exist_ok=True)
+            with open(f'{path}/documento.md', 'w', encoding='utf-8') as f:
                 f.write(formatted_content)
             print("Relatório gerado em 'documento.md'.")
         except Exception as e:
@@ -49,8 +94,7 @@ class Task:
         self.agent = agent
         self.expected_output = expected_output
         self.attempts = attempts
-
-    
+        print(f"\nTarefa: {description} de {agent.role} criada com sucesso!")
 
 class Crew:
     def __init__(self, agents, tasks):
@@ -59,14 +103,26 @@ class Crew:
     
     def kickoff(self, inputs):
         results = []
+        tarefas_executadas = 0
+
         for task in self.tasks:
-            result = task.agent.execute(task, task.attempts, inputs['tema'])
-            #print("Resultado: ", result)
-            results.append(result)
+            try:
+                result = task.agent.execute(task, task.attempts, inputs['tema'])
+                results.append(result)
+                tarefas_executadas += 1
+            except Exception as e:
+                print(f"Error executing task: {str(e)}")
+                results.append(f"Error executing task: {str(e)}")
+
+            print(f"\nTarefa {tarefas_executadas} concluida com sucesso!")
+            
         return results
 
 
 def run_crewai_pv():
+    # Define the theme
+    tema = "Como trabalhar com frontend React e backend em python com crud e sqlite "
+    entradas = {"tema": tema}
 
     # Define agents
     buscador = Agent(
@@ -83,14 +139,14 @@ def run_crewai_pv():
 
     # Define tasks
     pesquisa = Task(
-        description="Pesquisar sobre {tema} com as fontes mais recentes e confiáveis",
+        description=f"Pesquisar sobre {tema} com as fontes mais recentes e confiáveis",
         agent=buscador,
         expected_output="Um relatório  com parágrafos contendo Introdução, Desenvolvimento, e Conclusão",
         attempts=2
     )
 
     escrita = Task(
-        description="Escrever um artigo em formato markdown sobre {tema} com base na pesquisa realizada",
+        description=f"Escrever um artigo em formato markdown sobre {tema} com base na pesquisa realizada",
         agent=redator,
         expected_output="Arquivo markdown bem escrito e objetivo de forma didática",
         attempts=2
@@ -102,9 +158,6 @@ def run_crewai_pv():
         tasks=[pesquisa, escrita]
     )
 
-    # Define the theme
-    tema = "Empresas de delivery em campo grande RJ "
-    entradas = {"tema": tema}
 
     # Execute tasks
     results = equipe.kickoff(inputs=entradas)
@@ -117,3 +170,5 @@ def run_crewai_pv():
         if i == 1:  # Generate markdown for the second task (writing task)
             redator.gerar_markdown(result)
 
+
+run_crewai_pv()

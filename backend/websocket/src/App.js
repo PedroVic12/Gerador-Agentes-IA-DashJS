@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import io from 'socket.io-client';
-import { Button, AppBar, Toolbar, Typography, Container, Paper, Grid } from '@mui/material';
+import { Button, AppBar, Toolbar, Typography, Container, Paper, Grid, TextField, Divider } from '@mui/material';
+import ReactMarkdown from 'react-markdown';
 
 function App() {
   const [agents, setAgents] = useState([
@@ -39,15 +40,25 @@ function App() {
   ]);
   const [agentOrder, setAgentOrder] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [state, setState] = useState({ left: false, right: false });
   const [isDragging, setIsDragging] = useState(false);
+  const [prompt, setPrompt] = useState("");
+  const [markdownResult, setMarkdownResult] = useState("");
 
   const socket = useMemo(() => io('http://localhost:6000'), []);
 
   useEffect(() => {
     socket.on('task_results', (data) => {
       console.log('Received data:', data);
+      setMarkdownResult(data.markdown_result);
       setLoading(false);
+    });
+
+    socket.on('connect', () => {
+      console.log('Connected to WebSocket server');
+    });
+
+    socket.on('disconnect', () => {
+      console.log('Disconnected from WebSocket server');
     });
 
     return () => {
@@ -77,9 +88,51 @@ function App() {
     setAgentOrder(agentOrder.filter((agent) => agent.id !== agentId));
   };
 
+  const updateAgentTasks = (agentId, taskIndex, newTask) => {
+    const updatedAgents = agentOrder.map((agent) => {
+      if (agent.id === agentId) {
+        const updatedTasks = [...agent.tasks];
+        updatedTasks[taskIndex] = newTask;
+        return { ...agent, tasks: updatedTasks };
+      }
+      return agent;
+    });
+    setAgentOrder(updatedAgents);
+  };
+
+  const addTaskToAgent = (agentId) => {
+    const updatedAgents = agentOrder.map((agent) => {
+      if (agent.id === agentId) {
+        return { ...agent, tasks: [...agent.tasks, 'Nova Tarefa'] };
+      }
+      return agent;
+    });
+    setAgentOrder(updatedAgents);
+  };
+
+  const addNewAgent = () => {
+    const newAgent = {
+      id: agents.length + 1,
+      name: `Agente ${agents.length + 1}`,
+      role: '',
+      goal: '',
+      backstory: '',
+      tasks: [],
+    };
+    setAgents([...agents, newAgent]);
+  };
+
   const triggerTask = () => {
     setLoading(true);
-    socket.emit('start_tasks', { tema: 'Your Theme Here' });
+    const taskData = agentOrder.map((agent) => ({
+      id: agent.id,
+      name: agent.name,
+      role: agent.role,
+      goal: agent.goal,
+      backstory: agent.backstory,
+      tasks: agent.tasks
+    }));
+    socket.emit('start_tasks', { agents: taskData, prompt: prompt });
   };
 
   return (
@@ -96,9 +149,10 @@ function App() {
         <Grid container spacing={3}>
           <Grid item xs={12} md={3}>
             <Paper elevation={3} className="p-6">
-              <Typography variant="h6" gutterBottom>
+              <Typography variant="h6" gutterBottom style={{ color: '#6a1b9a' }}>
                 Agentes
               </Typography>
+              <Divider style={{ marginBottom: '10px' }} />
               <div className="space-y-3">
                 {agents.map((agent) => (
                   <div
@@ -106,20 +160,21 @@ function App() {
                     draggable
                     onDragStart={(e) => handleDragStart(e, agent)}
                     onClick={() => setAgentOrder([...agentOrder, agent])}
-                    className="p-4 bg-gray-200 rounded-lg cursor-pointer hover:bg-gray-300 transition-all transform hover:-translate-y-1 hover:shadow-md flex items-center gap-3"
+                    className="p-4 bg-green-100 rounded-lg cursor-pointer hover:bg-green-200 transition-all transform hover:-translate-y-1 hover:shadow-md flex items-center gap-3"
                   >
                     <Typography variant="body1">{agent.name}</Typography>
                   </div>
                 ))}
               </div>
-              <Button variant="contained" color="primary" fullWidth onClick={() => setAgents([...agents, { id: agents.length + 1, name: '', role: '', goal: '', backstory: '', tasks: [] }])}>Adicionar Novo Agente</Button>
+              <Button variant="contained" color="primary" fullWidth onClick={addNewAgent}>Adicionar Novo Agente</Button>
             </Paper>
           </Grid>
           <Grid item xs={12} md={6}>
             <Paper elevation={3} className="p-6">
-              <Typography variant="h6" gutterBottom>
+              <Typography variant="h6" gutterBottom style={{ color: '#6a1b9a' }}>
                 Área de Processamento
               </Typography>
+              <Divider style={{ marginBottom: '10px' }} />
               <div
                 className={`bg-white p-6 rounded-lg shadow-lg mb-6 min-h-[200px] transition-colors ${isDragging ? "drop-zone-active" : ""}`}
                 onDrop={handleDrop}
@@ -135,37 +190,72 @@ function App() {
                   {agentOrder.map((agent, index) => (
                     <div
                       key={agent.id}
-                      className="flex items-center bg-blue-50 px-4 py-2 rounded-full shadow-sm hover:shadow transition-shadow"
+                      className="flex flex-col items-center bg-green-100 px-4 py-2 rounded-lg shadow-sm hover:shadow transition-shadow"
+                      style={{ width: '150px' }}
                     >
                       <Typography variant="body2">{`${index + 1}. ${agent.name}`}</Typography>
                       <Button
                         onClick={() => handleRemoveAgent(agent.id)}
                         color="secondary"
                         size="small"
-                        style={{ marginLeft: '10px' }}
+                        style={{ marginTop: '10px' }}
                       >
-                        ×
+                        Remover
                       </Button>
                     </div>
                   ))}
                 </div>
+                <TextField
+                  label={`Digite o prompt para a equipe ${agentOrder.map((agent) => agent.name).join(', ')}`}
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  fullWidth
+                  margin="normal"
+                />
                 {loading && <Typography variant="body2" color="primary" align="center" style={{ marginTop: '10px' }}>Carregando...</Typography>}
-                {agentOrder.map((agent) => (
-                  <div key={agent.id} className="p-4 bg-gray-50 rounded-lg mb-3">
-                    <Typography variant="body1" gutterBottom>{agent.name}</Typography>
-                    {agent.tasks.map((task, index) => (
-                      <Typography key={index} variant="body2">{task}</Typography>
-                    ))}
-                  </div>
-                ))}
               </div>
+
+              <Typography variant="h6" gutterBottom style={{ color: '#6a1b9a', marginTop: '20px' }}>
+                Resultado
+              </Typography>
+              <Divider style={{ marginBottom: '10px' }} />
+              <Paper elevation={2} className="p-4 markdown-content" style={{ minHeight: '200px', backgroundColor: '#f8f9fa' }}>
+                <ReactMarkdown>
+                  {markdownResult || "Markdown resultado a ser exibido aqui..."}
+                </ReactMarkdown>
+              </Paper>
+
             </Paper>
           </Grid>
           <Grid item xs={12} md={3}>
             <Paper elevation={3} className="p-6">
-              <Typography variant="h6" gutterBottom>
+              <Typography variant="h6" gutterBottom style={{ color: '#6a1b9a' }}>
                 Tarefas
               </Typography>
+              <Divider style={{ marginBottom: '10px' }} />
+              {agentOrder.map((agent) => (
+                <div key={agent.id} className="p-4 bg-gray-50 rounded-lg mb-3">
+                  <Typography variant="body1" gutterBottom>{agent.name}</Typography>
+                  {agent.tasks.map((task, index) => (
+                    <TextField
+                      key={index}
+                      label={`Tarefa ${index + 1}`}
+                      value={task}
+                      onChange={(e) => updateAgentTasks(agent.id, index, e.target.value)}
+                      fullWidth
+                      margin="normal"
+                    />
+                  ))}
+                  <Button
+                    variant="outlined"
+                    color="primary"
+                    onClick={() => addTaskToAgent(agent.id)}
+                    style={{ marginTop: '10px' }}
+                  >
+                    Adicionar Tarefa
+                  </Button>
+                </div>
+              ))}
             </Paper>
           </Grid>
         </Grid>
