@@ -14,7 +14,6 @@ import {
 import ReactMarkdown from "react-markdown";
 
 function App() {
-  // eslint-disable-next-line no-unused-vars
   const [agents, setAgents] = useState([
     {
       id: 1,
@@ -39,7 +38,6 @@ function App() {
   const [agentOrder, setAgentOrder] = useState([]);
   const [socket, setSocket] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
   const [prompt, setPrompt] = useState("");
   const [markdownResult, setMarkdownResult] = useState("");
   const [isConfigValid, setIsConfigValid] = useState(false);
@@ -128,16 +126,11 @@ function App() {
     setAgents(updatedAgents);
   };
 
-  const handleTaskChange = (agentId, taskIndex, value) => {
-    const updatedAgents = agents.map(agent => {
-      if (agent.id === agentId) {
-        const updatedTasks = [...agent.tasks];
-        updatedTasks[taskIndex] = value;
-        return { ...agent, tasks: updatedTasks };
-      }
-      return agent;
-    });
-    setAgents(updatedAgents);
+  const handleSaveTasks = (agent) => {
+    console.log('Salvando tarefas para agente:', agent);
+    if (socket && socket.connected) {
+      socket.emit('update_agent', { agent });
+    }
   };
 
   const handleStartTasks = () => {
@@ -183,22 +176,14 @@ function App() {
     }
   };
 
-  const handleDrop = (event) => {
-    event.preventDefault();
-    setIsDragging(false);
-    
-    const droppedId = parseInt(event.dataTransfer.getData('text/plain'));
-    
-    if (!agentOrder.includes(droppedId)) {
-      const newOrder = [...agentOrder, droppedId];
+  const handleSelectAgent = (agent) => {
+    if (!agentOrder.includes(agent.id)) {
+      const newOrder = [...agentOrder, agent.id];
       setAgentOrder(newOrder);
-      
-      // Trigger configuration check after updating agent order
+
+      // Send agent data to WebSocket
       if (socket && socket.connected) {
-        socket.emit('check_configuration', {
-          agents: newOrder.map(id => agents.find(a => a.id === id)),
-          prompt
-        });
+        socket.emit('update_agent', { agent });
       }
     }
   };
@@ -210,9 +195,9 @@ function App() {
           <Typography variant="h6" style={{ flexGrow: 1 }}>
             Gerador de Agentes IA
           </Typography>
-          <div className={`connection-status ${connectionStatus}`}>
-            {connectionStatus === 'connected' ? '' : ''}
-          </div>
+          <Button color="inherit" onClick={() => alert(`Status: ${connectionStatus}`)}>
+            {connectionStatus === 'connected' ? 'Conectado' : 'Desconectado'}
+          </Button>
         </Toolbar>
       </AppBar>
       <Container maxWidth="xl" style={{ marginTop: '20px', marginBottom: '20px' }}>
@@ -227,144 +212,97 @@ function App() {
                 {agents.map((agent) => (
                   <div
                     key={agent.id}
-                    draggable
-                    onDragStart={(e) => setIsDragging(true)}
-                    onClick={() => setAgentOrder([...agentOrder, agent.id])}
                     className="p-4 bg-green-100 rounded-lg cursor-pointer hover:bg-green-200 transition-all"
                   >
-
                     <Typography variant="subtitle1" gutterBottom>{agent.name}</Typography>
-                    <TextField
-                      label="Role"
-                      value={agent.role}
-                      onChange={(e) => handleAgentChange(agent.id, 'role', e.target.value)}
+                    <Button
+                      variant="contained"
+                      color="success"
+                      onClick={() => handleSelectAgent(agent)}
                       fullWidth
-                      margin="dense"
-                    />
+                    >
+                      Selecionar Agente
+                    </Button>
                     <TextField
-                      label="Goal"
-                      value={agent.goal}
-                      onChange={(e) => handleAgentChange(agent.id, 'goal', e.target.value)}
-                      fullWidth
-                      margin="dense"
-                      multiline
-                    />
-                    <TextField
-                      label="Backstory"
-                      value={agent.backstory}
-                      onChange={(e) => handleAgentChange(agent.id, 'backstory', e.target.value)}
+                      label="Tarefas"
+                      value={agent.tasks.join(', ')}
+                      onChange={(e) => handleAgentChange(agent.id, 'tasks', e.target.value.split(', '))}
                       fullWidth
                       margin="dense"
                       multiline
                     />
+                    <Button
+                      variant="outlined"
+                      color="secondary"
+                      onClick={() => handleSaveTasks(agent)}
+                      fullWidth
+                      style={{ marginTop: '10px' }}
+                    >
+                      Salvar Tarefas
+                    </Button>
                   </div>
                 ))}
               </div>
             </Paper>
           </Grid>
-          
-          
           <Grid item xs={12} md={6}>
             <Paper elevation={3} className="p-6" style={{ minHeight: '80vh' }}>
               <Typography variant="h6" gutterBottom style={{ color: '#6a1b9a' }}>
                 Área de Processamento
               </Typography>
               <Divider style={{ marginBottom: '10px' }} />
-              <div className="drop-zone" onDrop={handleDrop} onDragOver={(e) => e.preventDefault()}>
-                <div className="flex flex-wrap gap-3 mb-4">
-                  {agentOrder.map((agentId, index) => {
-                    const agent = agents.find(a => a.id === agentId);
-                    return (
-                      <div key={agentId} className="w-full p-4 bg-green-50 rounded-lg">
-                        <Typography variant="h6">{`${index + 1}. ${agent.name}`}</Typography>
-                        {agent.tasks.map((task, taskIndex) => (
-                          <TextField
-                            key={taskIndex}
-                            label={`Task ${taskIndex + 1}`}
-                            value={task}
-                            onChange={(e) => handleTaskChange(agent.id, taskIndex, e.target.value)}
-                            fullWidth
-                            margin="normal"
-                            multiline
-                          />
-                        ))}
-                        <TextField
-                          label="Expected Output"
-                          value={agent.expected_output}
-                          onChange={(e) => handleAgentChange(agent.id, 'expected_output', e.target.value)}
-                          fullWidth
-                          margin="normal"
-                          multiline
-                        />
-                        <Button
-                          onClick={() => setAgentOrder(agentOrder.filter(id => id !== agentId))}
-                          color="secondary"
-                          variant="outlined"
-                          style={{ marginTop: '10px' }}
-                        >
-                          Remover
-                        </Button>
-                      </div>
-                    );
-                  })}
-                </div>
-                <TextField
-                  label="Digite seu prompt aqui"
-                  value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
-                  fullWidth
-                  margin="normal"
-                  multiline
-                  rows={4}
-                />
-
-                {/* {isDragging ? (
-                  <div className="drop-zone-active">
-                    <Typography variant="body1">Solte os agentes aqui</Typography>
+              <TextField
+                label="Digite seu prompt aqui"
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                fullWidth
+                margin="normal"
+                multiline
+                rows={4}
+              />
+              <ReactMarkdown>{markdownResult}</ReactMarkdown>
+              <Button
+                variant="contained"
+                color={isConfigValid ? "success" : "error"}
+                onClick={handleStartTasks}
+                disabled={loading || !isConfigValid}
+                style={{ marginTop: '20px', marginBottom: '20px' }}
+                fullWidth
+              >
+                {loading ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span>Processando</span>
+                    <div className="loading-dots">
+                      <span>.</span><span>.</span><span>.</span>
+                    </div>
                   </div>
                 ) : (
-                  <div className="drop-zone">
-                    <Typography variant="body1">Solte os agentes aqui</Typography>
-                  </div>
-                )} */}
-
-                <Button
-                  variant="contained"
-                  color={isConfigValid ? "success" : "error"}
-                  onClick={handleStartTasks}
-                  disabled={loading || !isConfigValid}
-                  style={{ marginTop: '20px', marginBottom: '20px' }}
-                  fullWidth
-                >
-                  {loading ? (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <span>Processando</span>
-                      <div className="loading-dots">
-                        <span>.</span><span>.</span><span>.</span>
-                      </div>
-                    </div>
-                  ) : (
-                    isConfigValid ? ' Iniciar Tarefas de agentes IA' : ' Complete a Configuração'
-                  )}
-                </Button>
-              </div>
+                  isConfigValid ? ' Iniciar Tarefas de agentes IA' : ' Complete a Configuração'
+                )}
+              </Button>
             </Paper>
           </Grid>
           <Grid item xs={12} md={3}>
-            <Paper elevation={3} className="p-6" style={{ minHeight: '80vh', overflowY: 'auto' }}>
+            <Paper elevation={3} className="p-6" style={{ minHeight: '80vh' }}>
               <Typography variant="h6" gutterBottom style={{ color: '#6a1b9a' }}>
-                Resultado
+                Tarefas dos Agentes
               </Typography>
               <Divider style={{ marginBottom: '10px' }} />
-              {markdownResult ? (
-                <div className="markdown-result">
-                  <ReactMarkdown>{markdownResult}</ReactMarkdown>
-                </div>
-              ) : (
-                <Typography variant="body2" color="textSecondary" align="center">
-                  Os resultados aparecerão aqui após o processamento
-                </Typography>
-              )}
+              <div className="flex flex-col gap-3">
+                {agentOrder.map((agentId) => {
+                  const agent = agents.find(a => a.id === agentId);
+                  return (
+                    <div key={agentId} className="p-4 bg-blue-100 rounded-lg">
+                      <Typography variant="subtitle1">{agent.name}</Typography>
+                      <ul>
+                        {agent.tasks.map((task, index) => (
+                          <li key={index}>{task}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  );
+                })}
+              </div>
             </Paper>
           </Grid>
         </Grid>

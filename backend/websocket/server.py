@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading', manage_session=False)
 
 # Default agents configuration
 DEFAULT_AGENTS = [
@@ -248,4 +248,4 @@ def handle_update_agent(data):
 
 if __name__ == '__main__':
     logger.info("🚀 Iniciando servidor WebSocket na porta 6000...")
-    socketio.run(app, host='0.0.0.0', port=6000, debug=True)
+    socketio.run(app, host='0.0.0.0', port=6000, debug=True, allow_unsafe_werkzeug=True)
