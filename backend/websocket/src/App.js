@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { io } from "socket.io-client";
 import {
   AppBar,
   Toolbar,
@@ -36,7 +35,7 @@ function App() {
   ]);
 
   const [agentOrder, setAgentOrder] = useState([]);
-  const [socket, setSocket] = useState(null);
+  const [ws, setWs] = useState(null);
   const [loading, setLoading] = useState(false);
   const [prompt, setPrompt] = useState("");
   const [markdownResult, setMarkdownResult] = useState("");
@@ -44,77 +43,76 @@ function App() {
   const [connectionStatus, setConnectionStatus] = useState('disconnected');
 
   useEffect(() => {
-    const newSocket = io('http://localhost:6000', {
-      transports: ['websocket'],
-      upgrade: false,
-      reconnection: true,
-      reconnectionAttempts: 5
-    });
-    
-    newSocket.on('connect', () => {
-      console.log(' Conectado ao servidor WebSocket');
+    const websocket = new WebSocket('ws://localhost:6000');
+
+    websocket.onopen = () => {
+      console.log('Connected to WebSocket server');
       setConnectionStatus('connected');
-    });
+    };
 
-    newSocket.on('default_agents', (data) => {
-      console.log(' Recebendo configuração padrão dos agentes:', data);
-      if (data.agents) {
-        setAgents(data.agents);
+    websocket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      console.log('Message from server ', data);
+      switch (data.type) {
+        case 'default_agents':
+          if (data.agents) {
+            setAgents(data.agents);
+          }
+          break;
+        case 'connection_status':
+          console.log(' Status da conexão:', data);
+          break;
+        case 'configuration_status':
+          console.log(' Status da configuração:', data);
+          setIsConfigValid(data.is_valid);
+          break;
+        case 'task_results':
+          console.log(' Resultados recebidos:', data);
+          setLoading(false);
+          if (data.status === 'error') {
+            console.error(' Erro:', data.markdown_result);
+          }
+          setMarkdownResult(data.markdown_result || '');
+          break;
+        default:
+          console.log('Unknown message type:', data.type);
       }
-    });
+    };
 
-    newSocket.on('connection_status', (data) => {
-      console.log(' Status da conexão:', data);
-    });
+    websocket.onclose = () => {
+      console.log('Disconnected from WebSocket server');
+      setConnectionStatus('disconnected');
+    };
 
-    newSocket.on('configuration_status', (data) => {
-      console.log(' Status da configuração:', data);
-      setIsConfigValid(data.is_valid);
-    });
-
-    newSocket.on('task_results', (data) => {
-      console.log(' Resultados recebidos:', data);
-      setLoading(false);
-      if (data.status === 'error') {
-        console.error(' Erro:', data.markdown_result);
-      }
-      setMarkdownResult(data.markdown_result || '');
-    });
-
-    newSocket.on('connect_error', (error) => {
-      console.error(' Erro de conexão:', error);
+    websocket.onerror = (error) => {
+      console.error('WebSocket error: ', error);
       setConnectionStatus('error');
       setLoading(false);
-    });
+    };
 
-    newSocket.on('disconnect', () => {
-      console.log(' Desconectado do servidor');
-      setConnectionStatus('disconnected');
-      setLoading(false);
-    });
-
-    setSocket(newSocket);
+    setWs(websocket);
 
     return () => {
-      if (newSocket) newSocket.disconnect();
+      websocket.close();
     };
   }, []);
 
   useEffect(() => {
-    if (socket && socket.connected) {
+    if (ws && ws.readyState === WebSocket.OPEN) {
       // Only send check if we have either agents or a prompt
       if (agentOrder.length > 0 || prompt.trim()) {
         console.log(' Verificando configuração:', {
           agents: agentOrder.map(id => agents.find(a => a.id === id)),
           prompt
         });
-        socket.emit('check_configuration', {
+        ws.send(JSON.stringify({
+          type: 'check_configuration',
           agents: agentOrder.map(id => agents.find(a => a.id === id)),
           prompt
-        });
+        }));
       }
     }
-  }, [agentOrder, prompt, socket, agents]);
+  }, [agentOrder, prompt, ws, agents]);
 
   const handleAgentChange = (agentId, field, value) => {
     const updatedAgents = agents.map(agent => {
@@ -128,13 +126,16 @@ function App() {
 
   const handleSaveTasks = (agent) => {
     console.log('Salvando tarefas para agente:', agent);
-    if (socket && socket.connected) {
-      socket.emit('update_agent', { agent });
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({
+        type: 'update_agent',
+        agent
+      }));
     }
   };
 
   const handleStartTasks = () => {
-    if (!socket || !socket.connected) {
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
       console.error(' WebSocket não conectado');
       alert('Erro de conexão com o servidor. Por favor, recarregue a página.');
       return;
@@ -168,7 +169,10 @@ function App() {
     console.log(' Enviando dados para o servidor:', data);
     
     try {
-      socket.emit('start_tasks', data);
+      ws.send(JSON.stringify({
+        type: 'start_tasks',
+        data
+      }));
     } catch (error) {
       console.error(' Erro ao enviar tarefas:', error);
       setLoading(false);
@@ -182,8 +186,11 @@ function App() {
       setAgentOrder(newOrder);
 
       // Send agent data to WebSocket
-      if (socket && socket.connected) {
-        socket.emit('update_agent', { agent });
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+          type: 'update_agent',
+          agent
+        }));
       }
     }
   };
@@ -195,8 +202,30 @@ function App() {
           <Typography variant="h6" style={{ flexGrow: 1 }}>
             Gerador de Agentes IA
           </Typography>
-          <Button color="inherit" onClick={() => alert(`Status: ${connectionStatus}`)}>
-            {connectionStatus === 'connected' ? 'Conectado' : 'Desconectado'}
+          <Button color="inherit" onClick={() => {
+            if (connectionStatus !== 'connected') {
+              const websocket = new WebSocket('ws://localhost:6000');
+              websocket.onopen = () => {
+                console.log('Connected to WebSocket server');
+                setConnectionStatus('connected');
+              };
+              websocket.onmessage = (event) => {
+                console.log('Message from server ', event.data);
+              };
+              websocket.onclose = () => {
+                console.log('Disconnected from WebSocket server');
+                setConnectionStatus('disconnected');
+              };
+              websocket.onerror = (error) => {
+                console.error('WebSocket error: ', error);
+                setConnectionStatus('error');
+              };
+              setWs(websocket);
+            } else {
+              alert(`Status: ${connectionStatus}`);
+            }
+          }}>
+            {connectionStatus === 'connected' ? 'Conectado :)' : 'Desconectado :('}
           </Button>
         </Toolbar>
       </AppBar>
