@@ -115,7 +115,7 @@ class Crew:
                 results.append(f"Error executing task: {str(e)}")
 
             print(f"\nTarefa {tarefas_executadas} concluida com sucesso!")
-            
+
         return results
 
 
@@ -171,4 +171,4 @@ def run_crewai_pv():
             redator.gerar_markdown(result)
 
 
-run_crewai_pv()
+#run_crewai_pv()
