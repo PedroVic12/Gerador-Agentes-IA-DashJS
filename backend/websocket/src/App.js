@@ -12,6 +12,7 @@ import {
   CircularProgress,
   //Alert,
   CssBaseline,
+  Divider,
 } from "@mui/material";
 import ReactMarkdown from "react-markdown";
 import AgentModal from './components/AgentModal';
@@ -236,12 +237,19 @@ function App() {
             </Grid>
             <Grid item xs={12}>
               <Box sx={{ mb: 2 }}>
+              <Divider gutterBottom sx={{marginBottom: 2, backgroundColor: 'rgba(0, 255, 132, 1)' }}>
+
+              </Divider>
                 <Typography variant="h3" gutterBottom>
                   Agentes Selecionados:
                 </Typography>
+                <Divider gutterBottom sx={{marginBottom: 2, backgroundColor: 'rgba(0, 255, 132, 1)' }}></Divider>
                 {selectedAgents.map((agent) => (
-                  <Typography key={agent.id} variant="body1">
-                    {agent.name} ({agent.role})
+                  // mostrando com o index
+
+
+                  <Typography key={agent.id} variant="h4" >
+                    {agent.id})    {agent.name}  ({agent.role})
                   </Typography>
                 ))}
               </Box>
