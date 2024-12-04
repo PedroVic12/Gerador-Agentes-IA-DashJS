@@ -24,7 +24,7 @@ const useWebSocket = () => {
   const [connectionStatus, setConnectionStatus] = useState('disconnected');
 
   useEffect(() => {
-    const websocket = new WebSocket('ws://localhost:9400');
+    const websocket = new WebSocket('ws://localhost:9000');
 
     websocket.onopen = () => {
       console.log('Connected to WebSocket server');
@@ -141,9 +141,12 @@ function App() {
       return;
     }
 
-    const tasks = selectedAgents.map((agent, index) => ({
+    // Create an array of selected agent IDs to maintain order
+    const selectedAgentIds = selectedAgents.map(agent => agent.id);
+
+    const tasks = selectedAgents.map((agent) => ({
       description: `${agent.role} - ${prompt}`,
-      agentId: agent.id,
+      agentId: selectedAgentIds.indexOf(agent.id) + 1, // Convert to 1-based index
       expected_output: agent.expected_output,
       attempts: 2
     }));
