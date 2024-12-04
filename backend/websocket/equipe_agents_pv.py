@@ -94,7 +94,7 @@ class Task:
         self.agent = agent
         self.expected_output = expected_output
         self.attempts = attempts
-        print(f"\nTarefa: {description} de {agent.role} criada com sucesso!")
+        print(f"\n>>> Tarefa: {description} do Agente:{agent.role}\n\nTarefa criada com sucesso!")
 
 class Crew:
     def __init__(self, agents, tasks):

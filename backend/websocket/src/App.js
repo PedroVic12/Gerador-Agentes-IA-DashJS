@@ -5,6 +5,10 @@ import {
   Typography,
   Container,
   Grid,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
   TextField,
   Paper,
   Button,
@@ -41,9 +45,11 @@ function App() {
   const [markdownResult, setMarkdownResult] = useState("");
   const [isConfigValid, setIsConfigValid] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState('disconnected');
+  const [open, setOpen] = useState(false);
+  const [newAgentName, setNewAgentName] = useState("");
 
   useEffect(() => {
-    const websocket = new WebSocket('ws://localhost:6000');
+    const websocket = new WebSocket('ws://localhost:9400');
 
     websocket.onopen = () => {
       console.log('Connected to WebSocket server');
@@ -51,68 +57,60 @@ function App() {
     };
 
     websocket.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      console.log('Message from server ', data);
-      switch (data.type) {
-        case 'default_agents':
-          if (data.agents) {
-            setAgents(data.agents);
-          }
-          break;
-        case 'connection_status':
-          console.log(' Status da conexão:', data);
-          break;
-        case 'configuration_status':
-          console.log(' Status da configuração:', data);
-          setIsConfigValid(data.is_valid);
-          break;
-        case 'task_results':
-          console.log(' Resultados recebidos:', data);
+      try {
+        const data = JSON.parse(event.data);
+        console.log('Received message:', data);
+
+        if (data.type === 'task_results') {
           setLoading(false);
-          if (data.status === 'error') {
-            console.error(' Erro:', data.markdown_result);
+          if (data.status === 'success') {
+            setMarkdownResult(data.markdown_result || '');
+          } else {
+            console.error('Task execution failed:', data.message);
+            alert('Erro ao executar as tarefas. Por favor, tente novamente.');
           }
-          setMarkdownResult(data.markdown_result || '');
-          break;
-        default:
-          console.log('Unknown message type:', data.type);
+        } else if (data.type === 'error') {
+          setLoading(false);
+          console.error('Server error:', data.message);
+          alert(`Erro do servidor: ${data.message}`);
+        }
+      } catch (error) {
+        console.error('Error processing message:', error);
+        setLoading(false);
       }
     };
 
     websocket.onclose = () => {
       console.log('Disconnected from WebSocket server');
       setConnectionStatus('disconnected');
+      setLoading(false);
     };
 
     websocket.onerror = (error) => {
-      console.error('WebSocket error: ', error);
+      console.error('WebSocket error:', error);
       setConnectionStatus('error');
       setLoading(false);
+      alert('Erro na conexão WebSocket. Por favor, recarregue a página.');
     };
 
     setWs(websocket);
 
     return () => {
-      websocket.close();
+      if (websocket.readyState === WebSocket.OPEN) {
+        websocket.close();
+      }
     };
   }, []);
 
   useEffect(() => {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      // Only send check if we have either agents or a prompt
-      if (agentOrder.length > 0 || prompt.trim()) {
-        console.log(' Verificando configuração:', {
-          agents: agentOrder.map(id => agents.find(a => a.id === id)),
-          prompt
-        });
-        ws.send(JSON.stringify({
-          type: 'check_configuration',
-          agents: agentOrder.map(id => agents.find(a => a.id === id)),
-          prompt
-        }));
-      }
-    }
-  }, [agentOrder, prompt, ws, agents]);
+    const isValid = agentOrder.length > 0 && prompt.trim() !== '';
+    setIsConfigValid(isValid);
+  
+    console.log('isConfigValid:', isConfigValid);
+    console.log('loading:', loading);
+    console.log('agentOrder:', agentOrder);
+    console.log('prompt:', prompt);
+  }, [agentOrder.length, prompt, loading, isConfigValid]);
 
   const handleAgentChange = (agentId, field, value) => {
     const updatedAgents = agents.map(agent => {
@@ -136,63 +134,79 @@ function App() {
 
   const handleStartTasks = () => {
     if (!ws || ws.readyState !== WebSocket.OPEN) {
-      console.error(' WebSocket não conectado');
+      console.error('WebSocket not connected');
       alert('Erro de conexão com o servidor. Por favor, recarregue a página.');
       return;
     }
 
-    if (!isConfigValid) {
-      alert('Por favor, complete a configuração antes de iniciar as tarefas.');
+    if (!prompt.trim()) {
+      alert('Por favor, insira um tema antes de iniciar as tarefas.');
       return;
     }
 
-    setLoading(true);
-    setMarkdownResult('');
+    const selectedAgents = agents.map(agent => ({
+      id: agent.id,
+      name: agent.name,
+      role: agent.role,
+      goal: agent.goal,
+      backstory: agent.backstory
+    }));
 
-    const selectedAgents = agentOrder.map(id => {
-      const agent = agents.find(a => a.id === id);
-      return {
-        name: agent.name,
-        role: agent.role,
-        goal: agent.goal,
-        backstory: agent.backstory,
-        tasks: agent.tasks,
-        expected_output: agent.expected_output
-      };
-    });
+    const tasks = [
+      {
+        description: `Pesquisar sobre ${prompt}`,
+        agentId: 1,
+        expected_output: 'Relatório detalhado.',
+        attempts: 2
+      },
+      {
+        description: `Escrever artigo em markdown sobre ${prompt}`,
+        agentId: 2,
+        expected_output: 'Artigo didático em markdown.',
+        attempts: 2
+      }
+    ];
 
     const data = {
+      tema: prompt,
       agents: selectedAgents,
-      prompt: prompt
+      tasks: tasks
     };
 
-    console.log(' Enviando dados para o servidor:', data);
-    
-    try {
-      ws.send(JSON.stringify({
-        type: 'start_tasks',
-        data
-      }));
-    } catch (error) {
-      console.error(' Erro ao enviar tarefas:', error);
-      setLoading(false);
-      alert('Erro ao iniciar tarefas. Por favor, tente novamente.');
-    }
+    setLoading(true);
+    setMarkdownResult(''); // Clear previous results
+
+    console.log('Sending data to WebSocket:', data);
+    ws.send(JSON.stringify({
+      type: 'start_tasks',
+      data
+    }));
   };
 
   const handleSelectAgent = (agent) => {
     if (!agentOrder.includes(agent.id)) {
       const newOrder = [...agentOrder, agent.id];
       setAgentOrder(newOrder);
-
-      // Send agent data to WebSocket
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({
-          type: 'update_agent',
-          agent
-        }));
-      }
     }
+  };
+
+  const handleAddAgent = () => {
+    const newAgent = {
+      id: agents.length + 1,
+      name: newAgentName,
+      role: 'Novo Agente',
+      goal: 'Definir objetivo',
+      backstory: 'Definir história',
+      tasks: [],
+      expected_output: 'Definir saída esperada'
+    };
+    setAgents([...agents, newAgent]);
+    setOpen(false);
+    setNewAgentName("");
+  };
+
+  const handleClose = () => {
+    setOpen(false);
   };
 
   return (
@@ -204,7 +218,7 @@ function App() {
           </Typography>
           <Button color="inherit" onClick={() => {
             if (connectionStatus !== 'connected') {
-              const websocket = new WebSocket('ws://localhost:6000');
+              const websocket = new WebSocket('ws://localhost:4000');
               websocket.onopen = () => {
                 console.log('Connected to WebSocket server');
                 setConnectionStatus('connected');
@@ -271,6 +285,23 @@ function App() {
                     </Button>
                   </div>
                 ))}
+                <Button onClick={() => setOpen(true)}>Adicionar Novo Agente</Button>
+                <Dialog open={open} onClose={handleClose}>
+                  <DialogTitle>Adicionar Novo Agente</DialogTitle>
+                  <DialogContent>
+                    <TextField
+                      label="Nome do Agente"
+                      value={newAgentName}
+                      onChange={(e) => setNewAgentName(e.target.value)}
+                      fullWidth
+                      margin="dense"
+                    />
+                  </DialogContent>
+                  <DialogActions>
+                    <Button onClick={handleClose}>Cancelar</Button>
+                    <Button onClick={handleAddAgent}>Adicionar</Button>
+                  </DialogActions>
+                </Dialog>
               </div>
             </Paper>
           </Grid>
@@ -306,7 +337,7 @@ function App() {
                     </div>
                   </div>
                 ) : (
-                  isConfigValid ? ' Iniciar Tarefas de agentes IA' : ' Complete a Configuração'
+                  isConfigValid ? 'Iniciar Tarefas de agentes IA' : 'Complete a Configuração'
                 )}
               </Button>
             </Paper>
