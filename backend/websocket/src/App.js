@@ -72,6 +72,23 @@ function App() {
       backstory: "Você é um redator experiente e está sempre buscando escrita limpa e facil de entendimento.",
       expected_output: "Arquivo markdown bem escrito e objetivo de forma didática",
     },
+    {
+      id:3,
+      name: "Marketing",
+      role: "Marketing especializado em vendas, webDesign e SEO",
+      goal: "Planejar e executar campanhas de marketing com foco em maximizar os lucros e fazer promoçoes de vendas",
+
+      backstory: " Especialista em convencer o publico com uma linguagem engraçada e consegue vender ate uma caneta por qualquer valor, ja atuou em diversas empresas multinacionais e sabe fazer um bom funil de vendas ",
+      expected_output: "Um relatório com suas ideias inovadoras de onde pode ser aplicadas suas estrategias com foco em vendas de aplicativos, sites, landing pages, sistemas web",
+    },
+    {
+      id:4,
+      name: "Programador",
+      role:"Programador e Desenvolvedor de Software",
+      goal: "Desenvolver um software para ajudar o mundo a ser melhor",
+      backstory: "Voce e um desenvolvedor experiente e sempre busca melhorar suas habilidades de programacao das tecnologias Python, React, Django, Flutter, Nodejs, Rust",
+      expected_output: "Um relatorio com suas ideias inovadoras de onde pode ser aplicadas suas estrategias com foco em vendas de aplicativos, sites, landing pages, sistemas web, modelos de IA, dashboards em python",
+    }
   ]);
 
   const [selectedAgents, setSelectedAgents] = useState([]);

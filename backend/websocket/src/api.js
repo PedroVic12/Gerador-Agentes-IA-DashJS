@@ -1,7 +1,9 @@
 const WebSocket = require('ws');
 
 // Connecting to WebSocket server with new port
-const ws = new WebSocket('ws://localhost:9300');
+const raichu_url = "https://docker-raichu.onrender.com:9000/"
+const url = "ws://localhost:9300"
+const ws = new WebSocket(raichu_url);
 
 ws.on('open', function open() {
     console.log('Connected to WebSocket server');
