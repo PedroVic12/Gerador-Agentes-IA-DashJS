@@ -10,11 +10,13 @@ import {
   Box,
   Paper,
   CircularProgress,
-  Alert,
+  //Alert,
+  CssBaseline,
 } from "@mui/material";
 import ReactMarkdown from "react-markdown";
 import AgentModal from './components/AgentModal';
 import AgentList from './components/AgentList';
+import Sidebar from './components/Sidebar';
 
 const useWebSocket = () => {
   const [ws, setWs] = useState(null);
@@ -51,6 +53,7 @@ const useWebSocket = () => {
 };
 
 function App() {
+  const [currentPage, setCurrentPage] = useState('/');
   const [agents, setAgents] = useState([
     {
       id: 1,
@@ -172,22 +175,39 @@ function App() {
     }
   };
 
-  return (
-    <Box sx={{ flexGrow: 1 }}>
-      <AppBar position="static">
-        <Toolbar>
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            AI Agents Dashboard
-          </Typography>
-          <Typography variant="body2" sx={{ mr: 2 }}>
-            Status: {connectionStatus}
-          </Typography>
-        </Toolbar>
-      </AppBar>
-
-      <Container maxWidth="lg" sx={{ mt: 4 }}>
-        <Grid container spacing={3}>
-          <Grid item xs={12}>
+  const renderContent = () => {
+    switch (currentPage) {
+      case '/':
+        return (
+          <Paper sx={{ p: 3, borderRadius: 2 }}>
+            <Typography variant="h5" gutterBottom>
+              Dashboard Overview
+            </Typography>
+            <Grid container spacing={3}>
+              <Grid item xs={12} md={4}>
+                <Paper sx={{ p: 2, textAlign: 'center', bgcolor: '#e3f2fd' }}>
+                  <Typography variant="h6">Agentes Ativos</Typography>
+                  <Typography variant="h4">{agents.length}</Typography>
+                </Paper>
+              </Grid>
+              <Grid item xs={12} md={4}>
+                <Paper sx={{ p: 2, textAlign: 'center', bgcolor: '#e8f5e9' }}>
+                  <Typography variant="h6">Tarefas Executadas</Typography>
+                  <Typography variant="h4">0</Typography>
+                </Paper>
+              </Grid>
+              <Grid item xs={12} md={4}>
+                <Paper sx={{ p: 2, textAlign: 'center', bgcolor: '#fff3e0' }}>
+                  <Typography variant="h6">Status</Typography>
+                  <Typography variant="h4">{connectionStatus}</Typography>
+                </Paper>
+              </Grid>
+            </Grid>
+          </Paper>
+        );
+      case '/agents':
+        return (
+          <>
             <Box sx={{ mb: 2 }}>
               <Button
                 variant="contained"
@@ -204,53 +224,113 @@ function App() {
               onEditAgent={handleEditAgent}
               onDeleteAgent={handleDeleteAgent}
             />
-          </Grid>
-
-          <Grid item xs={12}>
-            <TextField
-              fullWidth
-              label="Tema para os Agentes"
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              disabled={loading}
-              margin="normal"
-            />
-          </Grid>
-
-          <Grid item xs={12}>
-            <Box sx={{ mb: 2 }}>
-              <Typography variant="h6" gutterBottom>
-                Agentes Selecionados:
-              </Typography>
-              {selectedAgents.map((agent) => (
-                <Typography key={agent.id} variant="body1">
-                  {agent.name} ({agent.role})
-                </Typography>
-              ))}
-            </Box>
-          </Grid>
-
-          <Grid item xs={12}>
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={handleStartTasks}
-              disabled={loading || !prompt.trim() || selectedAgents.length === 0}
-              fullWidth
-            >
-              {loading ? <CircularProgress size={24} color="inherit" /> : 'Iniciar Tarefas'}
-            </Button>
-          </Grid>
-
-          {markdownResult && (
             <Grid item xs={12}>
-              <Paper sx={{ p: 2, mt: 2 }}>
-                <ReactMarkdown>{markdownResult}</ReactMarkdown>
-              </Paper>
+              <TextField
+                fullWidth
+                label="Tema para os Agentes"
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                disabled={loading}
+                margin="normal"
+              />
             </Grid>
-          )}
-        </Grid>
+            <Grid item xs={12}>
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="h6" gutterBottom>
+                  Agentes Selecionados:
+                </Typography>
+                {selectedAgents.map((agent) => (
+                  <Typography key={agent.id} variant="body1">
+                    {agent.name} ({agent.role})
+                  </Typography>
+                ))}
+              </Box>
+            </Grid>
+            <Grid item xs={12}>
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={handleStartTasks}
+                disabled={loading || !prompt.trim() || selectedAgents.length === 0}
+                fullWidth
+              >
+                {loading ? <CircularProgress size={24} color="inherit" /> : 'Iniciar Tarefas'}
+              </Button>
+            </Grid>
+            {markdownResult && (
+              <Grid item xs={12}>
+                <Paper sx={{ p: 2, mt: 2 }}>
+                  <ReactMarkdown>{markdownResult}</ReactMarkdown>
+                </Paper>
+              </Grid>
+            )}
+          </>
+        );
+      case '/automation':
+        return (
+          <Paper sx={{ p: 3 }}>
+            <Typography variant="h5" gutterBottom>Automação</Typography>
+            <Typography variant="body1">
+              Página em desenvolvimento para automação de tarefas usando Python.
+            </Typography>
+          </Paper>
+        );
+      case '/data-processing':
+        return (
+          <Paper sx={{ p: 3 }}>
+            <Typography variant="h5" gutterBottom>Processamento de Dados</Typography>
+            <Typography variant="body1">
+              Página em desenvolvimento para processamento e análise de dados.
+            </Typography>
+          </Paper>
+        );
+      case '/machine-learning':
+        return (
+          <Paper sx={{ p: 3 }}>
+            <Typography variant="h5" gutterBottom>Machine Learning</Typography>
+            <Typography variant="body1">
+              Página em desenvolvimento para modelos de machine learning.
+            </Typography>
+          </Paper>
+        );
+      default:
+        return null;
+    }
+  };
 
+  return (
+    <Box sx={{ display: 'flex' }}>
+      <CssBaseline />
+      <Sidebar onPageChange={setCurrentPage} currentPage={currentPage} />
+      <Box
+        component="main"
+        sx={{
+          flexGrow: 1,
+          height: '100vh',
+          overflow: 'auto',
+          backgroundColor: '#f5f5f5',
+        }}
+      >
+        <AppBar
+          position="fixed"
+          sx={{
+            width: { sm: `calc(100% - ${240}px)` },
+            ml: { sm: `${240}px` },
+          }}
+        >
+          <Toolbar>
+            <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+              Dashboard
+            </Typography>
+            <Typography variant="body2" sx={{ mr: 2 }}>
+              Status: {connectionStatus}
+            </Typography>
+          </Toolbar>
+        </AppBar>
+        <Toolbar /> {/* This toolbar is for spacing below the AppBar */}
+        <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+          {renderContent()}
+        </Container>
         <AgentModal
           open={modalOpen}
           handleClose={() => {
@@ -260,7 +340,7 @@ function App() {
           handleSave={handleSaveAgent}
           editingAgent={editingAgent}
         />
-      </Container>
+      </Box>
     </Box>
   );
 }
