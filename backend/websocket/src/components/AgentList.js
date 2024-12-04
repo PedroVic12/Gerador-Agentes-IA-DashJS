@@ -6,6 +6,8 @@ import {
   Button,
   IconButton,
   Box,
+  Divider,
+  
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
@@ -14,7 +16,7 @@ const AgentList = ({ agents, onSelectAgent, onEditAgent, onDeleteAgent }) => {
   return (
     <Grid container spacing={2}>
       {agents.map((agent) => (
-        <Grid item xs={12} sm={6} md={4} key={agent.id}>
+        <Grid item xs={12} sm={6} md={6} key={agent.id}>
           <Paper
             sx={{
               p: 2,
@@ -24,11 +26,23 @@ const AgentList = ({ agents, onSelectAgent, onEditAgent, onDeleteAgent }) => {
               position: 'relative',
             }}
           >
+            <Typography variant="h4" color='green' gutterBottom>
+              {agent.name}
+            </Typography>
+
+            <Divider sx={{ 
+              marginBottom: 2,
+              backgroundColor: 'rgba(0, 255, 132, 1)',
+             }}>
+              
+            </Divider>
+            
             <Box
+
               sx={{
                 position: 'absolute',
-                top: 8,
-                right: 8,
+                top: 4,
+                right: 1,
                 display: 'flex',
                 gap: 1,
               }}
@@ -37,9 +51,11 @@ const AgentList = ({ agents, onSelectAgent, onEditAgent, onDeleteAgent }) => {
                 size="small"
                 onClick={() => onEditAgent(agent)}
                 color="primary"
+     
               >
                 <EditIcon />
               </IconButton>
+              
               <IconButton
                 size="small"
                 onClick={() => onDeleteAgent(agent.id)}
@@ -49,9 +65,6 @@ const AgentList = ({ agents, onSelectAgent, onEditAgent, onDeleteAgent }) => {
               </IconButton>
             </Box>
 
-            <Typography variant="h6" gutterBottom>
-              {agent.name}
-            </Typography>
             <Typography variant="subtitle1" color="primary" gutterBottom>
               {agent.role}
             </Typography>
@@ -68,7 +81,7 @@ const AgentList = ({ agents, onSelectAgent, onEditAgent, onDeleteAgent }) => {
               fullWidth
               onClick={() => onSelectAgent(agent)}
             >
-              Selecionar Agente
+              Selecionar Agente na equipe
             </Button>
           </Paper>
         </Grid>

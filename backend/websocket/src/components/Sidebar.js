@@ -15,7 +15,7 @@ import MachineLearningIcon from '@mui/icons-material/Psychology';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import AgentsIcon from '@mui/icons-material/Groups';
 
-const drawerWidth = 240;
+const drawerWidth = 300;
 
 const menuItems = [
   { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
@@ -35,15 +35,15 @@ const Sidebar = ({ onPageChange, currentPage }) => {
         '& .MuiDrawer-paper': {
           width: drawerWidth,
           boxSizing: 'border-box',
-          backgroundColor: '#1a237e',
+          backgroundColor: 'indigo',
           color: 'white',
         },
       }}
     >
       <Box sx={{ overflow: 'auto', height: '100%' }}>
-        <Box sx={{ p: 2, textAlign: 'center' }}>
-          <Typography variant="h6" component="div" sx={{ color: 'white' }}>
-            AI Dashboard
+        <Box sx={{ p: 1, textAlign: 'center' }}>
+          <Typography variant="h3" component="div" sx={{ color: 'white' }}>
+           Menu Principal
           </Typography>
         </Box>
         <Divider sx={{ backgroundColor: 'rgba(255,255,255,0.12)' }} />
@@ -53,7 +53,17 @@ const Sidebar = ({ onPageChange, currentPage }) => {
               button
               key={item.text}
               onClick={() => onPageChange(item.path)}
+              onHover = {
+                () => {
+                  document.body.style.backgroundColor = 'rgba(255,255,255,0.08)';
+                }
+              }
+
+
+              
+
               sx={{
+                
                 backgroundColor: currentPage === item.path ? 'rgba(255,255,255,0.08)' : 'transparent',
                 '&:hover': {
                   backgroundColor: 'rgba(255,255,255,0.12)',

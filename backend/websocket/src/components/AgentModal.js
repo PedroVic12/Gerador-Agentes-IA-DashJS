@@ -33,8 +33,8 @@ const AgentModal = ({ open, handleClose, handleSave }) => {
   };
 
   return (
-    <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
-      <DialogTitle>Adicionar Novo Agente</DialogTitle>
+    <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth fullScreen>
+      <DialogTitle >Adicionar Novo Agente</DialogTitle>
       <DialogContent>
         <TextField
           autoFocus

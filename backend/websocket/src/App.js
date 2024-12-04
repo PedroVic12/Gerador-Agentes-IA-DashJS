@@ -58,15 +58,15 @@ function App() {
     {
       id: 1,
       name: "Pesquisador",
-      role: "Pesquisador",
+      role: "Pesquisador LLM e Google",
       goal: "Pesquisar informações relevantes sobre o assunto",
-      backstory: "Você é um pesquisador experiente e está sempre em busca de informações relevantes.",
+      backstory: "Você é um pesquisador curioso e experiente, está sempre em busca de informações relevantes.",
       expected_output: "Um relatório com parágrafos contendo Introdução, Desenvolvimento, e Conclusão",
     },
     {
       id: 2,
       name: "Redator",
-      role: "Redator",
+      role: "Escritor e Copywriter",
       goal: "Escrever um artigo informativo sobre o assunto",
       backstory: "Você é um redator experiente e está sempre buscando escrita limpa e facil de entendimento.",
       expected_output: "Arquivo markdown bem escrito e objetivo de forma didática",
@@ -227,7 +227,7 @@ function App() {
             <Grid item xs={12}>
               <TextField
                 fullWidth
-                label="Tema para os Agentes"
+                label="Prompt para os agentes, descreva de forma detalhada seu pedido"
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 disabled={loading}
@@ -236,7 +236,7 @@ function App() {
             </Grid>
             <Grid item xs={12}>
               <Box sx={{ mb: 2 }}>
-                <Typography variant="h6" gutterBottom>
+                <Typography variant="h3" gutterBottom>
                   Agentes Selecionados:
                 </Typography>
                 {selectedAgents.map((agent) => (
@@ -259,7 +259,71 @@ function App() {
             </Grid>
             {markdownResult && (
               <Grid item xs={12}>
-                <Paper sx={{ p: 2, mt: 2 }}>
+                <Paper 
+                  sx={{ 
+                    p: 4, 
+                    mt: 2,
+                    '& h1, & h2, & h3, & h4, & h5, & h6': {
+                      textAlign: 'left',
+                      color: '#1a237e',
+                      mt: 3,
+                      mb: 2
+                    },
+                    '& p': {
+                      textAlign: 'left',
+                      lineHeight: 1.6,
+                      mb: 2
+                    },
+                    '& ul, & ol': {
+                      textAlign: 'left',
+                      pl: 4
+                    },
+                    '& li': {
+                      mb: 1
+                    },
+                    '& pre': {
+                      backgroundColor: '#f5f5f5',
+                      p: 2,
+                      borderRadius: 1,
+                      overflow: 'auto'
+                    },
+                    '& code': {
+                      backgroundColor: '#f5f5f5',
+                      p: 0.5,
+                      borderRadius: 0.5,
+                      fontFamily: 'monospace'
+                    },
+                    '& blockquote': {
+                      borderLeft: '4px solid #1a237e',
+                      pl: 2,
+                      ml: 0,
+                      my: 2,
+                      color: 'text.secondary'
+                    },
+                    '& table': {
+                      width: '100%',
+                      borderCollapse: 'collapse',
+                      mb: 2
+                    },
+                    '& th, & td': {
+                      border: '1px solid #ddd',
+                      p: 1,
+                      textAlign: 'left'
+                    },
+                    '& th': {
+                      backgroundColor: '#f5f5f5'
+                    },
+                    '& img': {
+                      maxWidth: '100%',
+                      height: 'auto'
+                    },
+                    '& hr': {
+                      my: 3,
+                      border: 'none',
+                      borderTop: '1px solid #ddd'
+                    }
+                  }}
+                >
                   <ReactMarkdown>{markdownResult}</ReactMarkdown>
                 </Paper>
               </Grid>
@@ -318,9 +382,9 @@ function App() {
             ml: { sm: `${240}px` },
           }}
         >
-          <Toolbar>
-            <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-              Dashboard
+          <Toolbar backgroundColor= "indigo">
+            <Typography variant="h4" component="div" sx={{ flexGrow: 1 }}>
+              SISTEMA DE AGENTES IA com Gemini API
             </Typography>
             <Typography variant="body2" sx={{ mr: 2 }}>
               Status: {connectionStatus}
