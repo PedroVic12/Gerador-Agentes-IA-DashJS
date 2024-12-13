@@ -28,7 +28,7 @@ RUN npm install
 RUN npm run build
 
 # Copy Nginx configuration
-#COPY nginx.conf /etc/nginx/sites-available/default
+COPY nginx.conf /etc/nginx/sites-available/default
 
 
 # Expose the ports for FastAPI and React
@@ -36,4 +36,4 @@ EXPOSE 9400
 EXPOSE 3000
 
 # Start both applications
-CMD ["bash", "-c", "npm start  && ./venv/bin/python fastapi_websocket.py"]
+CMD ["bash", "-c", "service nginx start  && ./venv/bin/python fastapi_websocket.py"]
