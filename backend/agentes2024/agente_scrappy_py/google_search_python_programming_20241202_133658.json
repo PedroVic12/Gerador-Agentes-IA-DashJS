@@ -1,0 +1,46 @@
+{
+    "query": "python programming",
+    "timestamp": "2024-12-02T13:36:58.505026",
+    "results": [
+        {
+            "title": "Welcome to Python.org",
+            "link": "https://www.python.org/",
+            "snippet": "The official home of the Python Programming Language."
+        },
+        {
+            "title": "Welcome to Python.org",
+            "link": "https://www.python.org/",
+            "snippet": "The official home of the Python Programming Language."
+        },
+        {
+            "title": "Introduction to Python",
+            "link": "https://www.w3schools.com/python/python_intro.asp",
+            "snippet": "Python is a popular programming language. It was created by Guido van Rossum, and released in 1991. It is used for:"
+        },
+        {
+            "title": "Python (programming language)",
+            "link": "https://en.wikipedia.org/wiki/Python_(programming_language)",
+            "snippet": "Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation."
+        },
+        {
+            "title": "4 BOOKS IN ONE: PYTHON FOR BEGINNERS, CODING ...",
+            "link": "https://www.amazon.com.br/PYTHON-PROGRAMMING-BEGINNERS-ALGHORITMS-LEARNING/dp/1801587175",
+            "snippet": "The Ultimate Tool To Progress Your Python Programming From Good To Great While Making Coding In Scratch Look Easy. Do you want to learn Python Programming well ..."
+        },
+        {
+            "title": "A Crash Course On Python Programming and How To Start ...",
+            "link": "https://www.amazon.com.br/LEARN-PYTHON-Programming-Learning-Analysis/dp/1801128014",
+            "snippet": "Python programming language has rendered itself as the language of choice for coding beginners and advanced software programmers alike."
+        },
+        {
+            "title": "Learn Python Programming",
+            "link": "https://www.programiz.com/python-programming",
+            "snippet": "Python is one of the top programming languages in the world, widely used in fields such as AI, machine learning, data science, and web development."
+        },
+        {
+            "title": "Python Programming Tutorials",
+            "link": "https://pythonprogramming.net/",
+            "snippet": "Python Programming tutorials from beginner to advanced on a massive variety of topics. All video and text tutorials are free."
+        }
+    ]
+}

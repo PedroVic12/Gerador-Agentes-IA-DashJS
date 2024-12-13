@@ -24,11 +24,11 @@ const useWebSocket = () => {
   const [connectionStatus, setConnectionStatus] = useState('disconnected');
 
   useEffect(() => {
-    const websocket = new WebSocket('ws://localhost:9000');
+    const websocket = new WebSocket('ws://localhost:9400/ws');
 
     websocket.onopen = () => {
       console.log('Connected to WebSocket server');
-      setConnectionStatus('connected');
+      setConnectionStatus('CONECTADO');
     };
 
     websocket.onclose = () => {

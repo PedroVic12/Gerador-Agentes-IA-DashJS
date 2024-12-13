@@ -1,7 +1,0 @@
-{
-  "type": "module",
-  "dependencies": {
-    "@mui/material": "^6.1.9",
-    "axios": "^1.7.8"
-  }
-}
