@@ -13,9 +13,6 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Install pm2 globally
-RUN npm install -g pm2
-
 # Copy the current directory contents into the container at /app
 COPY . .
 
@@ -23,11 +20,11 @@ COPY . .
 RUN pip3 install -r requirements.txt
 
 # Install Node.js dependencies for the React app
-RUN npm install
+RUN cd backend/websocket/src && npm install
 
 # Expose the ports for FastAPI and React
 EXPOSE 9400
 EXPOSE 3000
 
-# Start both applications using pm2
-CMD ["pm2-runtime", "start", "backend/websocket/src/App.js", "--name", "react-app", "--interpreter", "node", "--", "start", "&&", "pm2-runtime", "start", "backend/websocket/fastapi_websocket.py", "--name", "fastapi-app", "--interpreter", "python3", "-m", "uvicorn", "fastapi_websocket:app", "--host", "0.0.0.0", "--port", "9400"]
+# Start both applications
+CMD ["bash", "-c", "cd backend/websocket/src && npm start & cd ../.. && python3 fastapi_websocket.py"]
