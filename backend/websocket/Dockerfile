@@ -27,6 +27,10 @@ RUN ./venv/bin/pip install --no-cache-dir -r requirements.txt
 RUN npm install
 RUN npm run build
 
+# Copy Nginx configuration
+#COPY nginx.conf /etc/nginx/sites-available/default
+
+
 # Expose the ports for FastAPI and React
 EXPOSE 9400
 EXPOSE 3000
