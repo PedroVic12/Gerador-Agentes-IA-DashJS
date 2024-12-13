@@ -8,6 +8,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     python3 \
     python3-pip \
+    python3-venv \
     nodejs \
     npm \
     && apt-get clean \
@@ -16,8 +17,11 @@ RUN apt-get update && apt-get install -y \
 # Copy the current directory contents into the container at /app
 COPY . .
 
-# Install Python dependencies
-RUN pip3 install -r requirements.txt
+# Create a virtual environment
+RUN python3 -m venv venv
+
+# Install Python dependencies in the virtual environment
+RUN ./venv/bin/pip install --no-cache-dir -r requirements.txt
 
 # Install Node.js dependencies for the React app
 RUN cd backend/websocket/src && npm install
@@ -27,4 +31,4 @@ EXPOSE 9400
 EXPOSE 3000
 
 # Start both applications
-CMD ["bash", "-c", "cd backend/websocket/src && npm start & cd ../.. && python3 fastapi_websocket.py"]
+CMD ["bash", "-c", "cd backend/websocket/src && npm start & cd ../.. && ./venv/bin/python fastapi_websocket.py"]
