@@ -24,7 +24,8 @@ RUN python3 -m venv venv
 RUN ./venv/bin/pip install --no-cache-dir -r requirements.txt
 
 # Install Node.js dependencies for the React app
-RUN  npm install
+RUN npm install
+RUN npm run build
 
 # Expose the ports for FastAPI and React
 EXPOSE 9400
