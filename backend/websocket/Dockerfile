@@ -24,11 +24,11 @@ RUN python3 -m venv venv
 RUN ./venv/bin/pip install --no-cache-dir -r requirements.txt
 
 # Install Node.js dependencies for the React app
-RUN cd backend/websocket/src && npm install
+RUN  npm install
 
 # Expose the ports for FastAPI and React
 EXPOSE 9400
 EXPOSE 3000
 
 # Start both applications
-CMD ["bash", "-c", "cd backend/websocket/src && npm start & cd ../.. && ./venv/bin/python fastapi_websocket.py"]
+CMD ["bash", "-c", "npm start  && ./venv/bin/python fastapi_websocket.py"]
